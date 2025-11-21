@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
-#include "mongo.h"
+#include "server/headers/data/mongo.h"
+#include "server/headers/constants.h"
 
 mongoc_client_t *client;
 mongoc_database_t *database;
@@ -16,7 +17,7 @@ int mongodb_init(){
         return -1;
     }
 
-    database = mongoc_client_get_database(client, "chat_database");
+    database = mongoc_client_get_database(client, DB_NAME);
 
     bson_t reply;
     bson_error_t error;
@@ -38,30 +39,35 @@ int mongodb_init(){
 
     printf("status: %d\n", client_status);
 
-    // test insert
-    int friends[3] = {2, 3, 0};
-    int chats[2] = {1, 0};
-    bson_t user = bson_create_user(1, "Bob", "passwd", friends, chats);
-    mongodb_insert("USER", user);
-
     // print USER collection
     mongodb_print_collection(coll);
 
-    bson_destroy(&user);
     mongoc_collection_destroy(coll);
     bson_destroy(&reply);
     return 0;
 }
 
 void mongodb_cleanup(){
+    bson_error_t error;
+    bson_t *filter = bson_new();
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "USER");
+
+    if(!mongoc_collection_delete_many(collection, filter, NULL, NULL, &error)){
+        fprintf(stderr, "Deletion of USER failed: %s\n", error.message);
+    }
+
+    mongoc_collection_destroy(collection);
+
     mongoc_database_destroy(database);
     mongoc_client_destroy(client);
     mongoc_cleanup();
 }
 
 void mongodb_insert(const char *collection_name, bson_t document){
+
+
     bson_error_t error;
-    mongoc_collection_t *collection = mongoc_client_get_collection(client, "chat_database", collection_name);
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
     if(!mongoc_collection_insert_one(collection, &document, NULL, NULL, &error)){
         fprintf(stderr, "Operation insert failed: %s\n", error.message);
@@ -69,6 +75,22 @@ void mongodb_insert(const char *collection_name, bson_t document){
 
     mongoc_collection_destroy(collection);
 }
+
+void mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc){
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
+
+    mongoc_cursor_t *results = mongoc_collection_find_with_opts(collection, filter, opts, NULL);
+
+    mongoc_cursor_next(results, doc);
+    /*
+    char *str = bson_as_canonical_extended_json(doc, NULL);
+    printf("mongodb_get_doc:\n%s\n", str);
+    bson_free(str);
+    */
+    mongoc_cursor_destroy(results);
+    mongoc_collection_destroy(collection);
+}   
+
 
 void mongodb_print_collection(mongoc_collection_t *collection){
     bson_t *query = bson_new();
@@ -91,7 +113,7 @@ void mongodb_print_collection(mongoc_collection_t *collection){
     bson_destroy(query);
 }
 
-bson_t bson_create_user(int user_id, const char* name, const char* password, int* friends_id, int* chats_id){
+bson_t bson_create_user_sec(int user_id, const char* name, const char* password, int* friends_id, int* chats_id){
     bson_t doc;
     bson_init(&doc);
 
@@ -109,6 +131,7 @@ bson_t bson_create_user(int user_id, const char* name, const char* password, int
         i++;
     }
     BSON_APPEND_ARRAY(&doc, "friends", &friends);
+    BSON_APPEND_INT32(&doc, "friends_num", i);
 
     bson_t chats;
     bson_init(&chats);
@@ -119,6 +142,7 @@ bson_t bson_create_user(int user_id, const char* name, const char* password, int
         i++;
     }
     BSON_APPEND_ARRAY(&doc, "chats", &chats);
+    BSON_APPEND_INT32(&doc, "chats_num", i);
 
     //int64_t now_ms = (int64_t) time(NULL) * 1000;
     //BSON_APPEND_DATE(&doc, "last", now_ms);
@@ -127,7 +151,7 @@ bson_t bson_create_user(int user_id, const char* name, const char* password, int
     return doc;
 }
 
-bson_t bson_create_user_num(int user_id, const char* name, const char* password, int* friends_id, int num_friends, int* chats_id, int num_chats){
+bson_t bson_create_user(int user_id, const char* name, const char* password, int* friends_id, int num_friends, int* chats_id, int num_chats){
     bson_t doc;
     bson_init(&doc);
 
@@ -143,6 +167,7 @@ bson_t bson_create_user_num(int user_id, const char* name, const char* password,
         BSON_APPEND_INT32(&friends, key, friends_id[i]);
     }
     BSON_APPEND_ARRAY(&doc, "friends", &friends);
+    BSON_APPEND_INT32(&doc, "friends_num", num_friends);
 
     bson_t chats;
     bson_init(&chats);
@@ -151,6 +176,7 @@ bson_t bson_create_user_num(int user_id, const char* name, const char* password,
         BSON_APPEND_INT32(&chats, key, chats_id[i]);
     }
     BSON_APPEND_ARRAY(&doc, "chats", &chats);
+    BSON_APPEND_INT32(&doc, "chats_num", num_chats);
 
     //int64_t now_ms = (int64_t) time(NULL) * 1000;
     //BSON_APPEND_DATE(&doc, "last", now_ms);
@@ -158,3 +184,4 @@ bson_t bson_create_user_num(int user_id, const char* name, const char* password,
     
     return doc;
 }
+
