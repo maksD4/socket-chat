@@ -3,3 +3,5 @@
 
 # Ignore all .rdb files
 *.rdb
+
+temp.c

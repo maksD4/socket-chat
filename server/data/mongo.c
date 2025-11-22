@@ -29,6 +29,7 @@ int mongodb_init(){
         mongodb_cleanup();
         return -1;
     }
+    mongodb_data_clear();
 
     // if collection exist then coll is NULL
     mongoc_collection_t *coll = mongoc_database_create_collection(database, "USER", NULL, &error);
@@ -47,7 +48,7 @@ int mongodb_init(){
     return 0;
 }
 
-void mongodb_cleanup(){
+void mongodb_data_clear(){
     bson_error_t error;
     bson_t *filter = bson_new();
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "USER");
@@ -55,8 +56,11 @@ void mongodb_cleanup(){
     if(!mongoc_collection_delete_many(collection, filter, NULL, NULL, &error)){
         fprintf(stderr, "Deletion of USER failed: %s\n", error.message);
     }
-
     mongoc_collection_destroy(collection);
+}
+
+void mongodb_cleanup(){
+    mongodb_data_clear();
 
     mongoc_database_destroy(database);
     mongoc_client_destroy(client);
@@ -111,44 +115,6 @@ void mongodb_print_collection(mongoc_collection_t *collection){
 
     mongoc_cursor_destroy(results);
     bson_destroy(query);
-}
-
-bson_t bson_create_user_sec(int user_id, const char* name, const char* password, int* friends_id, int* chats_id){
-    bson_t doc;
-    bson_init(&doc);
-
-    BSON_APPEND_INT32(&doc, "user_id", user_id);
-    BSON_APPEND_UTF8(&doc, "name", name);
-    BSON_APPEND_UTF8(&doc, "password", password);
-
-    bson_t friends;
-    bson_init(&friends);
-    int i = 0;
-    char key[12];
-    while(friends_id[i] != 0){
-        snprintf(key, sizeof(key), "%d", i);
-        BSON_APPEND_INT32(&friends, key, friends_id[i]);
-        i++;
-    }
-    BSON_APPEND_ARRAY(&doc, "friends", &friends);
-    BSON_APPEND_INT32(&doc, "friends_num", i);
-
-    bson_t chats;
-    bson_init(&chats);
-    i = 0;
-    while(chats_id[i] != 0){
-        snprintf(key, sizeof(key), "%d", i);
-        BSON_APPEND_INT32(&chats, key, chats_id[i]);
-        i++;
-    }
-    BSON_APPEND_ARRAY(&doc, "chats", &chats);
-    BSON_APPEND_INT32(&doc, "chats_num", i);
-
-    //int64_t now_ms = (int64_t) time(NULL) * 1000;
-    //BSON_APPEND_DATE(&doc, "last", now_ms);
-    BSON_APPEND_NOW_UTC(&doc, "last");
-    
-    return doc;
 }
 
 bson_t bson_create_user(int user_id, const char* name, const char* password, int* friends_id, int num_friends, int* chats_id, int num_chats){

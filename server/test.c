@@ -18,11 +18,21 @@ int main(){
     bson_t user = bson_create_user(1, "Bob", "passwd", friends, 1, chats, 1);
     mongodb_insert("USER", user);
     bson_destroy(&user);
-    
-    load_user_to_redis("Bob");
 
+    int friends2[1] = {1};
+    bson_t user2 = bson_create_user(2, "Alice", "p4ssw0rd", friends2, 1, chats, 1);
+    mongodb_insert("USER", user2);
+    bson_destroy(&user2);
+
+    if(!load_user_to_redis("Bob")){
+        printf("Bob was successfully transferred from db to redis!\n");
+    }
+    else{
+        printf("Bob's transfer from db to redis has failed!\n");
+    }
     
-    mongodb_cleanup();
     redis_cleanup();
+    sleep(3);
+    mongodb_cleanup();
     exit(EXIT_SUCCESS);
 }

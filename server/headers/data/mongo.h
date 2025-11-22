@@ -8,6 +8,7 @@
 //#define mongoc_database_t *database;
 
 int mongodb_init();
+void mongodb_data_clear();
 void mongodb_cleanup();
 void mongodb_insert(const char *collection_name, bson_t doc);
 void mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc);

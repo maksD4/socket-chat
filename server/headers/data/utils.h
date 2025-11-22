@@ -4,6 +4,10 @@
 #include "server/headers/constants.h"
 #pragma once
 
-void load_user_to_redis(const char* name);
+int load_user_to_redis(const char* name);
+
+char* get_name(int user_id);
+int get_user_id(const char* name);
+
 
 #endif
