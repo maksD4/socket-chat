@@ -1,6 +1,8 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+static const uint16_t LOGIN_PORT = 5033;
+
 static const int ID_SIZE = 4;
 
 static const int NAME_MIN_SIZE = 3;

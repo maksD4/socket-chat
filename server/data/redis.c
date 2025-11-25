@@ -24,7 +24,7 @@ int chats_num
 
 
 int redis_init(){
-    pid_t redis_pid = fork();
+    redis_pid = fork();
     if (redis_pid == 0) {
         execlp("redis-server", "redis-server", "--daemonize", "no", NULL);
         perror("execlp");
@@ -137,10 +137,8 @@ int redis_read_user(char *session, user_t *user){
     return 0;
 }
 
-
-void redis_cleanup(){
-    // Close the connection.
-    printf("asd\n");
+/*
+SETTING SESSION IN REDIS AND GETTING OUT OF REDIS
     redisCommand(c, "HSET session:%s user_id %d", "bobsession", get_user_id("Bob"));
     user_t user;
     if(!redis_read_user("bobsession", &user)){
@@ -150,13 +148,21 @@ void redis_cleanup(){
     else{
         fprintf(stderr, "redis user read error\n");
     }
+    */
+
+
+void redis_cleanup(){
+    // Close the connection.
+    printf("[%d] asd\n", getpid());
 
     redisReply *r = redisCommand(c, "FLUSHALL");
     if(!strcmp(r->str, "OK")){
-        printf("Redis has been successfully wiped out!");
-    }
+        printf("Redis has been successfully wiped out!\n");
+    }   
+    printf("redis_pid: %d\nthis: %d\n", redis_pid, getpid());
 
     freeReplyObject(r);
     redisFree(c);
     kill(redis_pid, SIGTERM);
+    printf("asd2\n");
 }

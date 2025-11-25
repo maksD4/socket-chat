@@ -60,11 +60,14 @@ void mongodb_data_clear(){
 }
 
 void mongodb_cleanup(){
+    printf("c asd\n");
     mongodb_data_clear();
 
+    printf("c asd2\n");
     mongoc_database_destroy(database);
     mongoc_client_destroy(client);
     mongoc_cleanup();
+    printf("c asd3\n");
 }
 
 void mongodb_insert(const char *collection_name, bson_t document){
