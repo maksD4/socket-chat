@@ -19,8 +19,9 @@
 pid_t server_pid;
 pid_t login_pid;
 
+
 void signal_kill(int sig_num){
-    printf("[%d] Server kill signal(%d)!\n", getpid(), sig_num);
+    printf("[%d] Server is being closed with signal(%d)...\n", getpid(), sig_num);
     cleanup_server();
     sleep(2);
     kill_server();
@@ -34,6 +35,7 @@ void start_server(){
         perror("Server process creation has failed!");
     }
     if(pid == 0){
+        /*
         int tfd = open("/dev/pts/0", O_WRONLY);
         if (tfd < 0) {
             perror("open pts");
@@ -47,11 +49,12 @@ void start_server(){
         }
 
         close(tfd);
+        */
 
         signal(10, signal_kill);
 
         login_pid = create_login_process();
-        printf("[%d] Server boots up!\n", getpid());
+        printf("[%d] Server boots up...\n", getpid());
         server();
         
     }
@@ -108,17 +111,15 @@ void server(){
 }
 
 void kill_server(){
-    printf("login_pid: %d\nsever_pid: %d\n", login_pid, getpid());
+    printf("[%d] Server has been safely shut down.\n", getpid());
     kill(login_pid, SIGTERM);
     kill(getpid(), SIGTERM);
 }
 
 void cleanup_server(){
-    printf("Server cleanup!\n");
-
     redis_cleanup();
     sleep(5);
     mongodb_cleanup();
-    
-    printf("Server has been safely shut down.\n");
+
+    printf("[%d] Server has been cleaned up!\n", getpid());
 }

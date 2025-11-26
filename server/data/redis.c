@@ -88,7 +88,6 @@ void redis_write_user(user_t user){
 
 // reads user from redis by session key
 int redis_read_user(char *session, user_t *user){
-    printf("asd2\n");
     redisReply *r = redisCommand(c, "HGET session:%s user_id", session);
 
     printf("session(%s): %s\n", session, r->str);
@@ -121,7 +120,7 @@ int redis_read_user(char *session, user_t *user){
 
     user->friends = malloc(user->friends_num * sizeof(int));
     user->chats = malloc(user->chats_num * sizeof(int));
-    printf("asd3\n");
+
     // extract char* friends names from user:<id>:friends
     r = redisCommand(c, "LRANGE user:%d:friends 0 -1", user->user_id);
     for(size_t i = 0; i < r->elements; i++){
@@ -133,7 +132,7 @@ int redis_read_user(char *session, user_t *user){
     for(size_t i = 0; i < r->elements; i++){
         user->chats[i] = atoi(r->element[i]->str);
     }
-    printf("asd4\n");
+
     return 0;
 }
 
@@ -152,17 +151,16 @@ SETTING SESSION IN REDIS AND GETTING OUT OF REDIS
 
 
 void redis_cleanup(){
-    // Close the connection.
-    printf("[%d] asd\n", getpid());
+    // Sync data with mongodb
 
+    // Clean redis
     redisReply *r = redisCommand(c, "FLUSHALL");
     if(!strcmp(r->str, "OK")){
         printf("Redis has been successfully wiped out!\n");
     }   
-    printf("redis_pid: %d\nthis: %d\n", redis_pid, getpid());
 
     freeReplyObject(r);
     redisFree(c);
     kill(redis_pid, SIGTERM);
-    printf("asd2\n");
+    printf("[%d] Redis has been successfully cleaned up!\n", getpid());
 }
