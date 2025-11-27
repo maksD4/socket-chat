@@ -5,3 +5,5 @@
 *.rdb
 
 temp.c
+
+*.o

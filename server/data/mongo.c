@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
-#include "server/headers/data/mongo.h"
-#include "server/headers/constants.h"
+#include "server/data/mongo.h"
+#include "server/utils/constants.h"
 
 mongoc_client_t *client;
 mongoc_database_t *database;
-int highest_user_id = 1;
+int highest_user_id;
 
 int mongodb_init(){
     mongoc_init();
@@ -88,6 +88,8 @@ void mongodb_insert(const char *collection_name, bson_t document){
         fprintf(stderr, "Operation insert failed: %s\n", error.message);
     }
 
+    highest_user_id++;
+
     mongoc_collection_destroy(collection);
 }
 
@@ -108,7 +110,7 @@ void mongodb_get_user_doc(const char *collection_name, bson_t *filter, bson_t *o
 
 int mongodb_get_highest_id(const char *collection_name){
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
-    int id = 1;
+    int id = 0;
 
     const bson_t *doc;
     bson_t *filter = bson_new();

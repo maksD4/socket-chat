@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+#include <string.h>
+#include <hiredis/hiredis.h>
+
+#include "server/data/redis/redis_client.h"
+#include "server/utils/constants.h"
+
+static const char *hex_digits = "0123456789abcdef";
+
+int redis_session_exist(const char *session){
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "HEXISTS session:%s user_id", session);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> REDIS EXIST REPLY IS NULL: %s\n", getpid(), c->errstr);
+        return -1;
+    }
+
+    if(r->type == REDIS_REPLY_ERROR){
+        printf("[%d][REDIS] >> REDIS EXIST REPLY ERROR: %s\n", getpid(), r->str);
+        freeReplyObject(r);
+        return -1;
+    }
+
+    printf("1. HEXISTS session:%s user_id -> %lld\n", session, r->integer);
+ 	freeReplyObject(r);
+    return 0;
+}
+
+int redis_session_write(char **session_key, int user_id){
+    *session_key = malloc(SESSION_KEY_SIZE * sizeof(char));
+
+    srand(time(NULL));
+    for(int i = 0; i < SESSION_KEY_SIZE; i++){
+        *session_key[i] = hex_digits[rand()%16];
+    }
+
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "HSET session:%s user_id %d", *session_key, user_id);
+
+    if(strcmp(r->str, "OK")){
+        printf("[%d][REDIS] >> SESSION INSERT FAIL!\n", getpid());
+        return -1;
+    }    
+
+    printf("[%d][REDIS] >> session:%s insert.\n", getpid(), *session_key);
+    freeReplyObject(r);
+    return 0;
+}
+
+// Get user_id with session token
+int redis_session_read(const char *session){
+    if(redis_session_exist(session)){
+        return -1;
+    }
+
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "HGET session:%s user_id", session);
+
+    int user_id = r->str ? atoi(r->str) : -1;
+
+    freeReplyObject(r);
+    return user_id;
+}
+
+
+int redis_session_delete(const char *session){
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "HDEL session:%s user_id", session);
+
+    if(r->integer == 1 && r != NULL){
+        printf("[%d][REDIS] >> Session:%s has been successfully delted.\n", getpid(), session);
+    }
+    else{
+        printf("[%d][REDIS] >> SESSION DELETION FAIL!\n", getpid());
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}

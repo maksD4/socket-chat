@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -7,14 +8,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <strings.h>
 #include <pthread.h>
-#include <server/headers/modules/login.h>
 #include <bson/bson.h> // temporary
 
-#include "server/headers/data/mongo.h"
-#include "server/headers/data/redis.h"
-#include "server/headers/data/utils.h"
-#include "server/headers/modules/server.h"
+#include "server/modules/login.h"
+#include "server/data/mongo.h"
+#include "server/data/redis/redis_client.h"
+#include "server/data/utils.h"
+#include "server/modules/server.h"
 
 pid_t server_pid;
 pid_t login_pid;
@@ -62,7 +64,7 @@ void start_server(){
         server_pid = pid;
         char command[256];
         for(;;){
-            bzero(command, 256);
+            memset(command, 0, 256);
             scanf("%s", command);
             if(strcmp(command, "kill") == 0){
                 kill(server_pid, 10);

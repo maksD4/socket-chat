@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
-#include "server/headers/constants.h"
-#include "server/headers/data/mongo.h"
-#include "server/headers/data/redis.h"
-#include "utils.h"
+#include "server/utils/constants.h"
+#include "server/data/mongo.h"
+#include "server/data/redis/redis_client.h"
+#include "server/data/redis/redis_user.h"
+#include "server/data/utils.h"
 
 int get_user_id(const char* name){
     const bson_t *doc;
@@ -13,7 +14,7 @@ int get_user_id(const char* name){
                     "_id", BCON_BOOL(false),
                     "user_id", BCON_BOOL(true),
                     "}");
-    mongodb_get_doc("USER", filter, opts, &doc);
+    mongodb_get_user_doc("USER", filter, opts, &doc);
 
     int user_id;
     bson_iter_t iter;
@@ -38,7 +39,7 @@ char* get_name(int user_id){
                     "_id", BCON_BOOL(false),                                                                                                                                                                                                    
                     "name", BCON_BOOL (true),
                     "}");
-    mongodb_get_doc("USER", filter, opts, &doc);
+    mongodb_get_user_doc("USER", filter, opts, &doc);
     
     char *name;
     bson_iter_t iter;
@@ -72,7 +73,7 @@ int load_user_to_redis(const char* name){
                     "last", BCON_BOOL (true),
                     "}");
 
-    mongodb_get_doc("USER", filter, opts, &doc);
+    mongodb_get_user_doc("USER", filter, opts, &doc);
 
     bson_destroy(filter);
     bson_destroy(opts);
@@ -183,7 +184,7 @@ int load_user_to_redis(const char* name){
     printf("load_to_redis:\n%s\n", str);
     bson_free(str);
 
-    redis_write_user(user);
+    redis_user_write(user);
     
     /*
     free(user.name);

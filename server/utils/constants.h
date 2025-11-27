@@ -1,9 +1,11 @@
 #ifndef CONSTANTS_H
+#include <stdint.h>
 #define CONSTANTS_H
 
 static const uint16_t LOGIN_PORT = 5033;
 
 static const int ID_SIZE = 4;
+static const int SESSION_KEY_SIZE = 16;
 
 static const int NAME_MIN_SIZE = 3;
 static const int NAME_MAX_SIZE = 16;

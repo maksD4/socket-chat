@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "server/headers/data/user.h"
+#include "server/utils/models/user.h"
 
 void print_user(user_t user){
     printf("user_id: %d\n", user.user_id);
