@@ -16,6 +16,4 @@ typedef struct user
     int chats_num;
 }user_t;
 
-void print_user(user_t user);
-
 #endif

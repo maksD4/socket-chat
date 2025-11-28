@@ -13,10 +13,17 @@
 #include <bson/bson.h> // temporary
 
 #include "server/modules/login.h"
-#include "server/data/mongo.h"
+#include "server/data/mongodb/mongodb_client.h"
 #include "server/data/redis/redis_client.h"
+#include "server/data/redis/redis_session.h"
+#include "server/data/redis/redis_room.h"
 #include "server/data/utils.h"
 #include "server/modules/server.h"
+
+#include "server/utils/models/user.h"
+#include "server/utils/models/room.h"
+#include "server/utils/models/message.h"
+#include "server/utils/models/models_print.h"
 
 pid_t server_pid;
 pid_t login_pid;
@@ -105,6 +112,37 @@ void server(){
     else{
         printf("Bob's transfer from db to redis has failed!\n");
     }
+
+    // Redis session test
+    char *test_session;
+    if(redis_session_write(&test_session, 3)){
+        printf("redis_write fail\n");
+    }
+    else{
+        printf("session:%s userid:%d\n", test_session, redis_session_read(test_session));
+
+        redis_session_delete(test_session);
+
+        printf("session_exist: %d\n", redis_session_exist(test_session));
+    }
+
+    // Redis room test
+    message_t *msgs = malloc(2 * sizeof(message_t));
+    msgs[0] = create_message(1, 1, "Hello Alice!");
+    msgs[1] = create_message(2, 2, "Hello Bob!");
+    int *usrs = malloc(2 * sizeof(int));
+    usrs[0] = 1;
+    usrs[1] = 2;
+
+    room_t chat = create_room(1, usrs, 2, msgs, 2);
+    print_room(chat);
+
+    redis_room_write(chat);
+    room_t new_chat;
+    redis_room_read(1, &new_chat);
+    print_room(new_chat);
+
+    
 
     for(;;){
         printf("echo!\n");

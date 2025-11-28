@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "stdio.h": "c",
-        "redis_client.h": "c"
+        "redis_client.h": "c",
+        "signal.h": "c",
+        "types.h": "c"
     }
 }

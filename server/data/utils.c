@@ -2,61 +2,11 @@
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 #include "server/utils/constants.h"
-#include "server/data/mongo.h"
+#include "server/data/mongodb/mongodb_client.h"
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_user.h"
+#include "server/utils/models/models_print.h"
 #include "server/data/utils.h"
-
-int get_user_id(const char* name){
-    const bson_t *doc;
-    bson_t *filter = BCON_NEW("name", BCON_UTF8(name));
-    bson_t *opts = BCON_NEW("projection", "{",
-                    "_id", BCON_BOOL(false),
-                    "user_id", BCON_BOOL(true),
-                    "}");
-    mongodb_get_user_doc("USER", filter, opts, &doc);
-
-    int user_id;
-    bson_iter_t iter;
-    if(bson_iter_init_find(&iter, doc, "user_id") && BSON_ITER_HOLDS_INT32(&iter)){
-        user_id = bson_iter_int32(&iter);
-    }
-    else{
-        return -1;
-    }
-
-    printf("get_user_id(%s): %d\n", name, user_id);
-
-    bson_destroy(filter);
-    bson_destroy(opts);
-    return user_id;
-}
-
-char* get_name(int user_id){
-    const bson_t *doc;
-    bson_t *filter = BCON_NEW("user_id", BCON_INT32(user_id));
-    bson_t *opts = BCON_NEW ("projection", "{",
-                    "_id", BCON_BOOL(false),                                                                                                                                                                                                    
-                    "name", BCON_BOOL (true),
-                    "}");
-    mongodb_get_user_doc("USER", filter, opts, &doc);
-    
-    char *name;
-    bson_iter_t iter;
-    if(bson_iter_init_find(&iter, doc, "name") && BSON_ITER_HOLDS_UTF8(&iter)){
-        uint32_t len;
-        name = bson_iter_utf8(&iter, &len);
-    }
-    else{
-        return "-1";
-    }
-
-    printf("get_name(%d): %s\n", user_id, name);
-
-    bson_destroy(filter);
-    bson_destroy(opts);
-    return name;
-}
 
 int load_user_to_redis(const char* name){
     const bson_t *doc;
@@ -164,21 +114,7 @@ int load_user_to_redis(const char* name){
     }
 
 
-    printf("user_id: %d\n", user.user_id);
-    printf("name: %s\n", user.name);
-    printf("Password: %s\n", user.password);
-
-    printf("Friends (%d): ", user.friends_num);
-    for(int i = 0; i < user.friends_num; i++){
-        printf("%d ", user.friends[i]);
-    }
-
-    printf("\nChats (%d): ", user.chats_num);
-    for(int i = 0; i < user.chats_num; i++){
-        printf("%d ", user.chats[i]);
-    }
-
-    printf("\n");
+    print_user(user);
 
     char *str = bson_as_canonical_extended_json(doc, NULL);
     printf("load_to_redis:\n%s\n", str);

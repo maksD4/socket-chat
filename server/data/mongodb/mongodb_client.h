@@ -1,5 +1,5 @@
-#ifndef MONGO_H
-#define MONGO_H
+#ifndef MONGODB_CLIENT_H
+#define MONGODB_CLIENT_H
 #include <bson/bson.h>
 #include <mongoc/mongoc.h>
 #pragma once

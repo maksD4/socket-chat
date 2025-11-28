@@ -3,10 +3,62 @@
 #include <hiredis/hiredis.h>
 
 #include "server/data/redis/redis_user.h"
+#include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_client.h"
+#include "server/data/mongodb/mongodb_client.h"
 #include "server/utils/models/user.h"
 #include "server/data/utils.h"
 
+int get_user_id(const char* name){
+    const bson_t *doc;
+    bson_t *filter = BCON_NEW("name", BCON_UTF8(name));
+    bson_t *opts = BCON_NEW("projection", "{",
+                    "_id", BCON_BOOL(false),
+                    "user_id", BCON_BOOL(true),
+                    "}");
+    mongodb_get_user_doc("USER", filter, opts, &doc);
+
+    int user_id;
+    bson_iter_t iter;
+    if(bson_iter_init_find(&iter, doc, "user_id") && BSON_ITER_HOLDS_INT32(&iter)){
+        user_id = bson_iter_int32(&iter);
+    }
+    else{
+        return -1;
+    }
+
+    printf("get_user_id(%s): %d\n", name, user_id);
+
+    bson_destroy(filter);
+    bson_destroy(opts);
+    return user_id;
+}
+
+char* get_name(int user_id){
+    const bson_t *doc;
+    bson_t *filter = BCON_NEW("user_id", BCON_INT32(user_id));
+    bson_t *opts = BCON_NEW ("projection", "{",
+                    "_id", BCON_BOOL(false),                                                                                                                                                                                                    
+                    "name", BCON_BOOL (true),
+                    "}");
+    mongodb_get_user_doc("USER", filter, opts, &doc);
+    
+    char *name;
+    bson_iter_t iter;
+    if(bson_iter_init_find(&iter, doc, "name") && BSON_ITER_HOLDS_UTF8(&iter)){
+        uint32_t len;
+        name = bson_iter_utf8(&iter, &len);
+    }
+    else{
+        return "-1";
+    }
+
+    printf("get_name(%d): %s\n", user_id, name);
+
+    bson_destroy(filter);
+    bson_destroy(opts);
+    return name;
+}
 
 // Save user_id, name, password, friends_num, chats_num HSET, but
 // the friends and chats array save with RPUSH
@@ -27,7 +79,7 @@ int redis_user_write(user_t user){
     // Saving friends and chats array in redis
     for(int i = 0; i < user.friends_num; i++){
         redisCommand(c, "RPUSH user:%d:friends %s", user.user_id, get_name(user.friends[i]));
-        printf("%s's %d friend name: %s\n", user.name, i, get_name(user.friends[i]));
+        //printf("%s's %d friend name: %s\n", user.name, i, get_name(user.friends[i]));
     }
 
     for(int i = 0; i < user.chats_num; i++){
@@ -45,17 +97,17 @@ int redis_user_read(char *session, user_t *user){
         return -1;
     }
 
-    redisReply *r = redisCommand(c, "HGET session:%s user_id", session);
+    int id = redis_session_read(session);
 
-    printf("session(%s): %s\n", session, r->str);
-    user->user_id = r->str ? atoi(r->str) : 0;
-
-    if(!user->user_id){
-        fprintf(stderr, "Invalid user_id while reading from redis!\n");
+    if(id == -1){
+        printf("[%d][REDIS] >> SESSION READ FAILED WHILE USER READING!\n", getpid());
         return -1;
     }
 
-    r = redisCommand(c, "HMGET user:%d name password friends_num chats_num", user->user_id);
+    printf("session:%s user_id -> %d\n", session, id);
+    user->user_id = id;
+
+    redisReply *r = redisCommand(c, "HMGET user:%d name password friends_num chats_num", user->user_id);
 
     if(r->type != REDIS_REPLY_ARRAY || r-> elements != 4){
         fprintf(stderr, "HMGET returned unexpected format!\n");

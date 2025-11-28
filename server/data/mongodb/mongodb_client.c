@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
-#include "server/data/mongo.h"
+#include "server/data/mongodb/mongodb_client.h"
 #include "server/utils/constants.h"
 
 mongoc_client_t *client;
@@ -57,7 +57,7 @@ void mongodb_data_clear(){
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "USER");
 
     if(!mongoc_collection_delete_many(collection, filter, NULL, NULL, &error)){
-        fprintf(stderr, "Deletion of USER failed: %s\n", error.message);
+        fprintf(stderr, "Deletion of USER collection failed: %s\n", error.message);
     }
     mongoc_collection_destroy(collection);
 }

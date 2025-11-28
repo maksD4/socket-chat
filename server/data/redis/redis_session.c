@@ -26,24 +26,35 @@ int redis_session_exist(const char *session){
         return -1;
     }
 
-    printf("1. HEXISTS session:%s user_id -> %lld\n", session, r->integer);
+    int exist = (int) r->integer;
+    printf("[%d][REDIS] >> HEXISTS session:%s doesExist -> %lld\n", getpid(), session, r->integer);
  	freeReplyObject(r);
-    return 0;
+    return exist == 1 ? 0 : -1;
 }
 
 int redis_session_write(char **session_key, int user_id){
-    *session_key = malloc(SESSION_KEY_SIZE * sizeof(char));
-
+    *session_key = malloc((SESSION_KEY_SIZE + 1) * sizeof(char));
     srand(time(NULL));
+
     for(int i = 0; i < SESSION_KEY_SIZE; i++){
-        *session_key[i] = hex_digits[rand()%16];
+        (*session_key)[i] = hex_digits[rand()%16];
     }
+    (*session_key)[SESSION_KEY_SIZE] = '\0';
 
     redisContext *c = redis_get();
 
+    if(c == NULL){
+        printf("c is NULL\n");
+    }
+
     redisReply *r = redisCommand(c, "HSET session:%s user_id %d", *session_key, user_id);
 
-    if(strcmp(r->str, "OK")){
+    if(!r){
+        printf("[%d][REDIS] >> REDIS REPLY IS NULL WHILE WRITING!\n", getpid());
+        return -1;
+    }
+
+    if(r->integer == 0){
         printf("[%d][REDIS] >> SESSION INSERT FAIL!\n", getpid());
         return -1;
     }    
@@ -76,7 +87,7 @@ int redis_session_delete(const char *session){
     redisReply *r = redisCommand(c, "HDEL session:%s user_id", session);
 
     if(r->integer == 1 && r != NULL){
-        printf("[%d][REDIS] >> Session:%s has been successfully delted.\n", getpid(), session);
+        printf("[%d][REDIS] >> Session:%s has been successfully deleted.\n", getpid(), session);
     }
     else{
         printf("[%d][REDIS] >> SESSION DELETION FAIL!\n", getpid());
