@@ -111,9 +111,9 @@ int redis_room_write(room_t room){
         return -1;
     }
 
-    redisCommand(c, "HSET room:%d user_amount %d message_amount %d", room.chat_id, room.users_amount, room.message_amount);
+    redisCommand(c, "HSET room:%d user_amount %d message_amount %d", room.chat_id, room.user_amount, room.message_amount);
 
-    for(int i = 0; i < room.users_amount; i++){
+    for(int i = 0; i < room.user_amount; i++){
         redisCommand(c, "RPUSH room:%d:users %d", room.chat_id, room.users[i]);
     }
 
@@ -143,14 +143,14 @@ int redis_room_read(int chat_id, room_t *room){
     }
 
     room->chat_id = chat_id;
-    room->users_amount = atoi(r->element[0]->str);
+    room->user_amount = atoi(r->element[0]->str);
     room->message_amount = atoi(r->element[1]->str);
 
-    room->users = malloc(room->users_amount * sizeof(int));
+    room->users = malloc(room->user_amount * sizeof(int));
     room->messages = malloc(room->message_amount * sizeof(message_t));
 
     r = redisCommand(c, "LRANGE room:%d:users 0 -1", room->chat_id);
-    for(int i = 0; i < room->users_amount; i++){
+    for(int i = 0; i < room->user_amount; i++){
         room->users[i] = atoi(r->element[i]->str);
     }
 

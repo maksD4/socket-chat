@@ -3,6 +3,6 @@
 #include <bson/bson.h>
 #pragma once
 
-int load_user_to_redis(const char* name);
+int load_user_to_redis(char* name);
 
 #endif

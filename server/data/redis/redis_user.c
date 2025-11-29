@@ -16,7 +16,7 @@ int get_user_id(const char* name){
                     "_id", BCON_BOOL(false),
                     "user_id", BCON_BOOL(true),
                     "}");
-    mongodb_get_user_doc("USER", filter, opts, &doc);
+    mongodb_get_doc("USER", filter, opts, &doc);
 
     int user_id;
     bson_iter_t iter;
@@ -41,7 +41,9 @@ char* get_name(int user_id){
                     "_id", BCON_BOOL(false),                                                                                                                                                                                                    
                     "name", BCON_BOOL (true),
                     "}");
-    mongodb_get_user_doc("USER", filter, opts, &doc);
+    if(mongodb_get_doc("USER", filter, opts, &doc)){
+        return "Unknown";
+    }
     
     char *name;
     bson_iter_t iter;
@@ -50,7 +52,7 @@ char* get_name(int user_id){
         name = bson_iter_utf8(&iter, &len);
     }
     else{
-        return "-1";
+        return "Unknown";
     }
 
     printf("get_name(%d): %s\n", user_id, name);

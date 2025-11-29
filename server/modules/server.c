@@ -14,10 +14,11 @@
 
 #include "server/modules/login.h"
 #include "server/data/mongodb/mongodb_client.h"
+#include "server/data/mongodb/mongodb_user.h"
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_room.h"
-#include "server/data/utils.h"
+#include "server/data/bridge.h"
 #include "server/modules/server.h"
 
 #include "server/utils/models/user.h"
@@ -95,18 +96,22 @@ void server(){
         
     }
 
-    int friends[1] = {2};
+    printf("asd\n");
+
+    int friends[2] = {2, 3};
     int chats[1] = {1};
-    bson_t user = bson_create_user(1, "Bob", "passwd", friends, 1, chats, 1);
-    mongodb_insert("USER", user);
-    bson_destroy(&user);
-
+    user_t bob = create_user(1, "Bob", "password", friends, 2, chats, 1);
+    if(mongodb_user_write(bob)){
+        printf("[%d][DB] DB INSERT FAILED!\n", getpid());
+    }
+    printf("asd2\n");
     int friends2[1] = {1};
-    bson_t user2 = bson_create_user(2, "Alice", "p4ssw0rd", friends2, 1, chats, 1);
-    mongodb_insert("USER", user2);
-    bson_destroy(&user2);
+    user_t alice = create_user(2, "Alice", "secret", friends2, 1, chats, 1);
+    if(mongodb_user_write(alice)){
+        printf("[%d][DB] DB INSERT FAILED!\n", getpid());
+    }
 
-    if(!load_user_to_redis("Bob")){
+    if(!mongodb_to_redis("Bob")){
         printf("Bob was successfully transferred from db to redis!\n");
     }
     else{

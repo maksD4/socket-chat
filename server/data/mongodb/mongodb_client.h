@@ -10,9 +10,8 @@
 int mongodb_init();
 void mongodb_data_clear();
 void mongodb_cleanup();
-void mongodb_insert(const char *collection_name, bson_t doc);
-void mongodb_get_user_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc);
+int mongodb_insert(const char *collection_name, bson_t doc);
+int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc);
 int mongodb_get_highest_id(const char *collection_name);
-void mongodb_print_collection(mongoc_collection_t *collection);
-bson_t bson_create_user(int user_id, const char* name, const char* password, int* friends_id, int num_friends, int* chats_id, int num_chats);
+void mongodb_print_collection(const char *collection_name);
 #endif

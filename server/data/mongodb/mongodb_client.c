@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 #include "server/data/mongodb/mongodb_client.h"
@@ -33,20 +34,25 @@ int mongodb_init(){
     mongodb_data_clear();
 
     // if collection exist then coll is NULL
-    mongoc_collection_t *coll = mongoc_database_create_collection(database, "USER", NULL, &error);
+    mongoc_collection_t *user_col = mongoc_database_create_collection(database, "USER", NULL, &error);
+    mongoc_collection_t *room_col = mongoc_database_create_collection(database, "ROOM", NULL, &error);
 
-    if(coll){
-        printf("Collection USER has been created!\n");
+    if(user_col){
+        printf("[%d][DB] >> Collection USER has been created!\n", getpid());
+    }
+    if(room_col){
+        printf("[%d][DB] >> Collection ROOM hasb been created!\n", getpid());
     }
 
     printf("status: %d\n", client_status);
 
     // print USER collection
-    mongodb_print_collection(coll);
+    mongodb_print_collection("USER");
 
     highest_user_id = mongodb_get_highest_id("USER");
 
-    mongoc_collection_destroy(coll);
+    mongoc_collection_destroy(user_col);
+    mongoc_collection_destroy(room_col);
     bson_destroy(&reply);
     return 0;
 }
@@ -71,34 +77,38 @@ void mongodb_cleanup(){
     printf("[%d] Mongodb resources has been successfully cleaned up!\n", getpid());
 }
 
-void mongodb_insert(const char *collection_name, bson_t document){
+int mongodb_insert(const char *collection_name, bson_t document){
     bson_error_t error;
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
     bson_iter_t iter;
     if(bson_iter_init_find(&iter, &document, "user_id") && BSON_ITER_HOLDS_INT32(&iter)){
         if(bson_iter_int32(&iter) <= highest_user_id){
-            printf("[%d] Invalid user id while inserting to db!\n", getpid());
+            printf("[%d][DB] Invalid user id while inserting to db!\n", getpid());
             mongoc_collection_destroy(collection);
-            return;
+            return -1;
         }
     }
 
     if(!mongoc_collection_insert_one(collection, &document, NULL, NULL, &error)){
-        fprintf(stderr, "Operation insert failed: %s\n", error.message);
+        fprintf(stderr, "[%d][DB] Operation insert failed: %s\n", getpid(), error.message);
+        return -1;
     }
 
     highest_user_id++;
 
     mongoc_collection_destroy(collection);
+    return 0;
 }
 
-void mongodb_get_user_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc){
+int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc){
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
     mongoc_cursor_t *results = mongoc_collection_find_with_opts(collection, filter, opts, NULL);
 
-    mongoc_cursor_next(results, doc);
+    if(!mongoc_cursor_next(results, doc)){
+        return -1;
+    }
     /*
     char *str = bson_as_canonical_extended_json(doc, NULL);
     printf("mongodb_get_doc:\n%s\n", str);
@@ -106,6 +116,7 @@ void mongodb_get_user_doc(const char *collection_name, bson_t *filter, bson_t *o
     */
     mongoc_cursor_destroy(results);
     mongoc_collection_destroy(collection);
+    return 0;
 }   
 
 int mongodb_get_highest_id(const char *collection_name){
@@ -134,10 +145,11 @@ int mongodb_get_highest_id(const char *collection_name){
     return id;
 }
 
-void mongodb_print_collection(mongoc_collection_t *collection){
+void mongodb_print_collection(const char *collection_name){
     bson_t *query = bson_new();
+    mongoc_collection_t *col = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
-    mongoc_cursor_t *results = mongoc_collection_find_with_opts(collection, query, NULL, NULL);
+    mongoc_cursor_t *results = mongoc_collection_find_with_opts(col, query, NULL, NULL);
     const bson_t *doc;
 
     while(mongoc_cursor_next(results, &doc)){
@@ -154,36 +166,3 @@ void mongodb_print_collection(mongoc_collection_t *collection){
     mongoc_cursor_destroy(results);
     bson_destroy(query);
 }
-
-bson_t bson_create_user(int user_id, const char* name, const char* password, int* friends_id, int num_friends, int* chats_id, int num_chats){
-    bson_t doc;
-    bson_init(&doc);
-
-    BSON_APPEND_INT32(&doc, "user_id", user_id);
-    BSON_APPEND_UTF8(&doc, "name", name);
-    BSON_APPEND_UTF8(&doc, "password", password);
-
-    bson_t friends;
-    bson_init(&friends);
-    char key[12];
-    for(int i = 0; i < num_friends; i++){
-        snprintf(key, sizeof(key), "%d", i);
-        BSON_APPEND_INT32(&friends, key, friends_id[i]);
-    }
-    BSON_APPEND_ARRAY(&doc, "friends", &friends);
-    BSON_APPEND_INT32(&doc, "friends_num", num_friends);
-
-    bson_t chats;
-    bson_init(&chats);
-    for(int i = 0; i < num_chats; i++){
-        snprintf(key, sizeof(key), "%d", i);
-        BSON_APPEND_INT32(&chats, key, chats_id[i]);
-    }
-    BSON_APPEND_ARRAY(&doc, "chats", &chats);
-    BSON_APPEND_INT32(&doc, "chats_num", num_chats);
-
-    BSON_APPEND_NOW_UTC(&doc, "last");
-    
-    return doc;
-}
-

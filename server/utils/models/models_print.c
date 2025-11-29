@@ -40,16 +40,28 @@ void print_message(message_t message){
 
 void print_room(room_t room){
     printf("chat_id: %d\n", room.chat_id);
-    printf("user_amount: %d\n", room.users_amount);
+    printf("user_amount: %d\n", room.user_amount);
     printf("users: ");
-    for(int i = 0; i < room.users_amount; i++){
+    for(int i = 0; i < room.user_amount; i++){
         printf("%d, ", room.users[i]);
     }
     printf("\nmessage_amount: %d\n", room.message_amount);
     printf("messsages: ");
-    for(int i = 0; i < room.users_amount; i++){
+    for(int i = 0; i < room.user_amount; i++){
         print_message(room.messages[i]);
     }
+}
+
+user_t create_user(int id, char *name, char *password, int *friends, int friends_num, int *chats, int chats_num){
+    user_t u;
+    u.user_id = id;
+    u.name = name;
+    u.password = password;
+    u.friends = friends;
+    u.friends_num = friends_num;
+    u.chats = chats;
+    u.chats_num = chats_num;
+    return u;
 }
 
 message_t create_message(int id, int sent_by, char message[MESSAGE_MAX_SIZE]){
@@ -64,7 +76,7 @@ message_t create_message(int id, int sent_by, char message[MESSAGE_MAX_SIZE]){
 room_t create_room(int id, int *users, int user_amount, message_t *messages, int message_amount){
     room_t room;
     room.chat_id = id;
-    room.users_amount = user_amount;
+    room.user_amount = user_amount;
     room.users = users;
     room.message_amount = message_amount;
     room.messages = messages;

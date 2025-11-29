@@ -5,7 +5,7 @@
 typedef struct room{
     int chat_id;
     int *users;
-    int users_amount;
+    int user_amount;
     message_t *messages;
     int message_amount;
 }room_t;
