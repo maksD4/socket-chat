@@ -6,13 +6,14 @@
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/utils/models/user.h"
+#include "server/utils/models/models_print.h"
 #include "server/utils/constants.h"
 
 bson_t bson_create_user(user_t user){
     bson_t doc;
     bson_init(&doc);
 
-    BSON_APPEND_INT32(&doc, "user_id", user.user_id);
+    BSON_APPEND_INT32(&doc, "id", user.id);
     BSON_APPEND_UTF8(&doc, "name", user.name);
     BSON_APPEND_UTF8(&doc, "password", user.password);
 
@@ -45,7 +46,7 @@ int mongodb_user_read(char *name, user_t *user){
     bson_t *filter = BCON_NEW("name", BCON_UTF8(name));
     bson_t *opts = BCON_NEW ("projection", "{",
                     "_id", BCON_BOOL(false),                                                                                                                                                                                                    
-                    "user_id", BCON_BOOL (true),
+                    "id", BCON_BOOL (true),
                     "name", BCON_BOOL (true),
                     "password", BCON_BOOL (true),
                     "friends", BCON_BOOL (true),
@@ -67,8 +68,8 @@ int mongodb_user_read(char *name, user_t *user){
 
     user->name = name;
 
-    if(bson_iter_init_find(&iter, doc, "user_id") && BSON_ITER_HOLDS_INT32(&iter)) {
-        user->user_id = bson_iter_int32(&iter);
+    if(bson_iter_init_find(&iter, doc, "id") && BSON_ITER_HOLDS_INT32(&iter)) {
+        user->id = bson_iter_int32(&iter);
     }
     else{
         fprintf(stderr, "[%d][DB] >> %s's USER ID FIND FAILED!\n", getpid(), name);
@@ -76,8 +77,10 @@ int mongodb_user_read(char *name, user_t *user){
     }
 
     if(bson_iter_init_find(&iter, doc, "password") && BSON_ITER_HOLDS_UTF8(&iter)) {
-        uint32_t len;
-        user->password = bson_iter_utf8(&iter, &len);
+        //uint32_t len;
+        //user->password = bson_iter_utf8(&iter, &len);
+        user->password = bson_strdup(bson_iter_utf8(&iter, NULL));
+        //printf("mongodb_user_read %s passwd: %s\n", user->name, user->password);
     }
     else{
         fprintf(stderr, "[%d][DB] >> %s's USER PASSWORD FIND FAILED!\n", getpid(), name);
@@ -150,12 +153,14 @@ int mongodb_user_read(char *name, user_t *user){
         return -1;
     }
 
-
+    bson_destroy(doc);
     return 0;
 }
 
 int mongodb_user_write(user_t user){
     bson_t bson = bson_create_user(user);
+    // change every id name of object to "id", then in mongodb_insert check if id of object already exists
+    // if yes then update, if not then insert
     if(mongodb_insert("USER", bson) == -1){
         printf("[%d][DB] >> MONGODB %s INSERT FAILED!\n", getpid(), user.name);
         return -1;

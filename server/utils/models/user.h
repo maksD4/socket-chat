@@ -4,7 +4,7 @@
 
 typedef struct user
 {
-    int user_id;
+    int id;
 
     char* name;
     char* password;

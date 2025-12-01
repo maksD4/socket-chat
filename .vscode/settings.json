@@ -3,6 +3,7 @@
         "stdio.h": "c",
         "redis_client.h": "c",
         "signal.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "user.h": "c"
     }
 }

@@ -15,6 +15,7 @@
 #include "server/modules/login.h"
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/data/mongodb/mongodb_user.h"
+#include "server/data/mongodb/mongodb_room.h"
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_room.h"
@@ -96,19 +97,36 @@ void server(){
         
     }
 
-    printf("asd\n");
-
     int friends[2] = {2, 3};
     int chats[1] = {1};
     user_t bob = create_user(1, "Bob", "password", friends, 2, chats, 1);
     if(mongodb_user_write(bob)){
-        printf("[%d][DB] DB INSERT FAILED!\n", getpid());
+        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
     }
-    printf("asd2\n");
+
     int friends2[1] = {1};
     user_t alice = create_user(2, "Alice", "secret", friends2, 1, chats, 1);
     if(mongodb_user_write(alice)){
-        printf("[%d][DB] DB INSERT FAILED!\n", getpid());
+        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
+    }
+
+    bob.name = "Robert";
+    if(mongodb_user_write(bob)){
+        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
+    }
+
+    // Room test
+    message_t *msgs = malloc(2 * sizeof(message_t));
+    msgs[0] = create_message(1, 1, "Hello Alice!");
+    msgs[1] = create_message(2, 2, "Hello Bob!");
+    int *usrs = malloc(2 * sizeof(int));
+    usrs[0] = 1;
+    usrs[1] = 2;
+
+    room_t chat = create_room(1, usrs, 2, msgs, 2);
+    print_room(chat);
+    if(mongodb_room_write(chat)){
+        printf("[%d][DB] >> DB ROOM INSERT FAILED!\n", getpid());
     }
 
     if(!mongodb_to_redis("Bob")){
@@ -117,6 +135,15 @@ void server(){
     else{
         printf("Bob's transfer from db to redis has failed!\n");
     }
+
+    if(!mongodb_to_redis("Alice")){
+        printf("Alice was successfully transferred from db to redis!\n");
+    }
+    else{
+        printf("Alice's transfer from db to redis has failed!\n");
+    }
+
+    
 
     // Redis session test
     char *test_session;
@@ -130,24 +157,6 @@ void server(){
 
         printf("session_exist: %d\n", redis_session_exist(test_session));
     }
-
-    // Redis room test
-    message_t *msgs = malloc(2 * sizeof(message_t));
-    msgs[0] = create_message(1, 1, "Hello Alice!");
-    msgs[1] = create_message(2, 2, "Hello Bob!");
-    int *usrs = malloc(2 * sizeof(int));
-    usrs[0] = 1;
-    usrs[1] = 2;
-
-    room_t chat = create_room(1, usrs, 2, msgs, 2);
-    print_room(chat);
-
-    redis_room_write(chat);
-    room_t new_chat;
-    redis_room_read(1, &new_chat);
-    print_room(new_chat);
-
-    
 
     for(;;){
         printf("echo!\n");
@@ -163,7 +172,7 @@ void kill_server(){
 
 void cleanup_server(){
     redis_cleanup();
-    sleep(5);
+    sleep(3);
     mongodb_cleanup();
 
     printf("[%d] Server has been cleaned up!\n", getpid());

@@ -7,7 +7,7 @@
 #include "server/utils/models/user.h"
 
 void print_user(user_t user){
-    printf("user_id: %d\n", user.user_id);
+    printf("id: %d\n", user.id);
     printf("name: %s\n", user.name);
     printf("Password: %s\n", user.password);
 
@@ -27,7 +27,7 @@ void print_user(user_t user){
 void print_message(message_t message){
     printf("{ message id: %d, ", message.msg_id);
     printf("sent_by: %d, ", message.sent_by);
-    printf("message: %s, ", message.message);
+    printf("message: \"%s\", ", message.message);
     
     time_t t = (time_t) message.date;
     struct tm *tm_info = localtime(&t);
@@ -39,14 +39,14 @@ void print_message(message_t message){
 }
 
 void print_room(room_t room){
-    printf("chat_id: %d\n", room.chat_id);
+    printf("id: %d\n", room.id);
     printf("user_amount: %d\n", room.user_amount);
     printf("users: ");
     for(int i = 0; i < room.user_amount; i++){
         printf("%d, ", room.users[i]);
     }
     printf("\nmessage_amount: %d\n", room.message_amount);
-    printf("messsages: ");
+    printf("messsages: \n");
     for(int i = 0; i < room.user_amount; i++){
         print_message(room.messages[i]);
     }
@@ -54,7 +54,7 @@ void print_room(room_t room){
 
 user_t create_user(int id, char *name, char *password, int *friends, int friends_num, int *chats, int chats_num){
     user_t u;
-    u.user_id = id;
+    u.id = id;
     u.name = name;
     u.password = password;
     u.friends = friends;
@@ -75,7 +75,7 @@ message_t create_message(int id, int sent_by, char message[MESSAGE_MAX_SIZE]){
 
 room_t create_room(int id, int *users, int user_amount, message_t *messages, int message_amount){
     room_t room;
-    room.chat_id = id;
+    room.id = id;
     room.user_amount = user_amount;
     room.users = users;
     room.message_amount = message_amount;

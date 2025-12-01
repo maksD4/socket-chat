@@ -31,7 +31,8 @@ int mongodb_init(){
         mongodb_cleanup();
         return -1;
     }
-    mongodb_data_clear();
+    mongodb_clear_collection("USER");
+    mongodb_clear_collection("ROOM");
 
     // if collection exist then coll is NULL
     mongoc_collection_t *user_col = mongoc_database_create_collection(database, "USER", NULL, &error);
@@ -57,24 +58,56 @@ int mongodb_init(){
     return 0;
 }
 
-void mongodb_data_clear(){
+void mongodb_clear_collection(const char *collection_name){
     bson_error_t error;
     bson_t *filter = bson_new();
-    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "USER");
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
     if(!mongoc_collection_delete_many(collection, filter, NULL, NULL, &error)){
-        fprintf(stderr, "Deletion of USER collection failed: %s\n", error.message);
+        fprintf(stderr, "Deletion of %s collection failed: %s\n", collection_name, error.message);
     }
     mongoc_collection_destroy(collection);
 }
 
 void mongodb_cleanup(){
-    mongodb_data_clear();
+    //mongodb_clear_collection("USER");
+    //mongodb_clear_collection("ROOM");
 
     mongoc_database_destroy(database);
     mongoc_client_destroy(client);
     mongoc_cleanup();
     printf("[%d] Mongodb resources has been successfully cleaned up!\n", getpid());
+}
+/*
+int mongodb_exist(mongoc_collection_t *coll, int id){
+    bson_t *filter = BCON_NEW("id", BCON_INT32(id));
+
+    mongoc_cursor_t *cursor = mongoc_collection_find_with_opts(coll, filter, NULL, NULL);
+
+    const bson_t *doc;
+    int exists = mongoc_cursor_next(cursor, &doc);
+    printf("EXISTS: %d\n", exists);
+
+    mongoc_cursor_destroy(cursor);
+    bson_destroy(filter);
+    return 1;
+}
+*/
+int mongodb_exist(mongoc_collection_t *coll, int id){
+    bson_t filter;
+    bson_init(&filter);
+    BSON_APPEND_INT32(&filter, "id", id);
+
+    //mongoc_collection_t *coll = mongoc_client_get_collection(client, DB_NAME, collection_name);
+    mongoc_cursor_t *cursor = mongoc_collection_find_with_opts(coll, &filter, NULL, NULL);
+
+    const bson_t *doc;
+    int exists = mongoc_cursor_next(cursor, &doc);
+
+    //mongoc_collection_destroy(coll);
+    mongoc_cursor_destroy(cursor);
+    bson_destroy(&filter);
+    return exists == 1 ? 0 : -1;
 }
 
 int mongodb_insert(const char *collection_name, bson_t document){
@@ -82,21 +115,42 @@ int mongodb_insert(const char *collection_name, bson_t document){
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 
     bson_iter_t iter;
-    if(bson_iter_init_find(&iter, &document, "user_id") && BSON_ITER_HOLDS_INT32(&iter)){
-        if(bson_iter_int32(&iter) <= highest_user_id){
-            printf("[%d][DB] Invalid user id while inserting to db!\n", getpid());
+    int id = -1;
+
+    if(bson_iter_init_find(&iter, &document, "id") && BSON_ITER_HOLDS_INT32(&iter)){
+        id = bson_iter_int32(&iter);
+    }
+
+    if(id == -1){
+        printf("[%d][DB] >> INSERT DOCUMENT IS MISSING ID VALUE!\n", getpid());
+        mongoc_collection_destroy(collection);
+        return -1;
+    }
+
+    if(mongodb_exist(collection, id)){
+        // Insert if there is no document with certain id
+        if(!mongoc_collection_insert_one(collection, &document, NULL, NULL, &error)){
+            fprintf(stderr, "[%d][DB] >> OPERATION INSERT FAILED: %s\n", getpid(), error.message);
             mongoc_collection_destroy(collection);
             return -1;
         }
     }
+    else{
+        // Replace if there is document with certain id
+        bson_t filter;
+        bson_init(&filter);
 
-    if(!mongoc_collection_insert_one(collection, &document, NULL, NULL, &error)){
-        fprintf(stderr, "[%d][DB] Operation insert failed: %s\n", getpid(), error.message);
-        return -1;
+        BSON_APPEND_INT32(&filter, "id", id);
+
+        if(!mongoc_collection_replace_one(collection, &filter, &document, NULL, NULL, &error)){
+            fprintf(stderr, "[%d][DB] >> REPLACE ONE HAS FAILED: %s\n", error.message);
+            bson_destroy(&filter);
+            mongoc_collection_destroy(collection);
+            return -1;
+        }
+        bson_destroy(&filter);
     }
-
-    highest_user_id++;
-
+    
     mongoc_collection_destroy(collection);
     return 0;
 }
@@ -107,6 +161,8 @@ int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, c
     mongoc_cursor_t *results = mongoc_collection_find_with_opts(collection, filter, opts, NULL);
 
     if(!mongoc_cursor_next(results, doc)){
+        mongoc_cursor_destroy(results);
+        mongoc_collection_destroy(collection);
         return -1;
     }
     /*

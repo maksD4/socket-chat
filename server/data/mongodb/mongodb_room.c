@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <bson/bson.h>
 
+#include "server/data/mongodb/mongodb_client.h"
 #include "server/data/mongodb/mongodb_room.h"
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
@@ -17,13 +18,12 @@ bson_t bson_create_message(message_t msg){
     return doc;
 }
 
-bson_t bson_create_room(room_t room){
-    bson_t doc;
-    bson_init(&doc);
+bson_t* bson_create_room(room_t room){
+    bson_t *doc = bson_new();
 
-    BSON_APPEND_INT32(&doc, "chat_id", room.chat_id);
-    BSON_APPEND_INT32(&doc, "user_amount", room.user_amount);
-    BSON_APPEND_INT32(&doc, "message_amount", room.message_amount);
+    BSON_APPEND_INT32(doc, "id", room.id);
+    BSON_APPEND_INT32(doc, "user_amount", room.user_amount);
+    BSON_APPEND_INT32(doc, "message_amount", room.message_amount);
 
     bson_t users;
     bson_init(&users);
@@ -32,8 +32,8 @@ bson_t bson_create_room(room_t room){
         snprintf(user_id_key, sizeof(user_id_key), "%d", i);
         BSON_APPEND_INT32(&users, user_id_key, room.users[i]);
     }
-    BSON_APPEND_ARRAY(&doc, "users", &users);
-    bson_destroy(&users);
+    BSON_APPEND_ARRAY(doc, "users", &users);
+    //bson_destroy(&users);
 
     bson_t messages;
     bson_init(&messages);
@@ -44,18 +44,18 @@ bson_t bson_create_room(room_t room){
         BSON_APPEND_DOCUMENT(&messages, message_key, &msg);
         bson_destroy(&msg);
     }
-    BSON_APPEND_ARRAY(&doc, "messages", &messages);
-    bson_destroy(&messages);
+    BSON_APPEND_ARRAY(doc, "messages", &messages);
+    //bson_destroy(&messages);
 
     return doc;
 }
 
 int mongodb_room_read(int id, room_t *room){
     const bson_t *doc;
-    bson_t *filter = BCON_NEW("chat_id", BCON_INT32(id));
+    bson_t *filter = BCON_NEW("id", BCON_INT32(id));
     bson_t *opts = BCON_NEW ("projection", "{",
                     "_id", BCON_BOOL(false),                                                                                                                                                                                                    
-                    "chat_id", BCON_BOOL (true),
+                    "id", BCON_BOOL (true),
                     "users", BCON_BOOL (true),
                     "user_amount", BCON_BOOL (true),
                     "messages", BCON_BOOL (true),
@@ -72,7 +72,7 @@ int mongodb_room_read(int id, room_t *room){
 
     bson_iter_t iter;
 
-    room->chat_id = id;
+    room->id = id;
 
     if(bson_iter_init_find(&iter, doc, "user_amount") && BSON_ITER_HOLDS_INT32(&iter)) {
         room->user_amount = bson_iter_int32(&iter);
@@ -139,7 +139,7 @@ int mongodb_room_read(int id, room_t *room){
                     m->msg_id = bson_iter_int32(&msg_iter);
                 }
                 else{
-                    printf(stderr, "[%d][DB] >> %d's ROOM MESSAGE READ FAILED!\n", getpid(), id);
+                    fprintf(stderr, "[%d][DB] >> %d's ROOM MESSAGE READ FAILED!\n", getpid(), id);
                     bson_destroy(message_arr);
                     return -1;
                 }
@@ -187,13 +187,15 @@ int mongodb_room_read(int id, room_t *room){
 
 
 int mongodb_room_write(room_t room){
-    bson_t room_bson = bson_create_room(room);
-    if(mongodb_insert("ROOM", room_bson) == -1){
-        printf("[%d][DB] >> MONGODB ROOM:%d INSERT FAILED!\n", getpid(), room.chat_id);
+    bson_t* room_bson = bson_create_room(room);
+
+    if(mongodb_insert("ROOM", *room_bson) == -1){
+        printf("[%d][DB] >> MONGODB ROOM:%d INSERT FAILED!\n", getpid(), room.id);
         return -1;
     }
+
     mongodb_print_collection("ROOM");
 
-    bson_destroy(&room_bson);
+    bson_destroy(room_bson);
     return 0;
 }

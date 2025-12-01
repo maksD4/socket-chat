@@ -6,6 +6,7 @@ int redis_room_message_write(int chat_id, message_t *messages, int message_amoun
 int redis_room_message_read(int chat_id, message_t **messages, int message_amount);
 
 int redis_room_write(room_t room);
+int redis_room_exist(int chat_id);
 int redis_room_read(int chat_id, room_t *room);
 
 #endif 

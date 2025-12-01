@@ -10,14 +10,14 @@
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
 
-int redis_room_message_write(int chat_id, message_t *messages, int message_amount){
+int redis_room_message_write(int id, message_t *messages, int message_amount){
     redisContext *c = redis_get();
 
     redisReply *r;
     for(int i = 0; i < message_amount; i++){
         message_t *message = &messages[i];
 
-        r = redisCommand(c, "RPUSH room:%d:messages %d", chat_id, message->msg_id);
+        r = redisCommand(c, "RPUSH room:%d:messages %d", id, message->msg_id);
         
         if(r == NULL){
             printf("[%d][REDIS] >> REDIS MESSAGE READ REPLY IS NULL!\n", getpid());
@@ -25,7 +25,7 @@ int redis_room_message_write(int chat_id, message_t *messages, int message_amoun
         }
 
         redisCommand(c, "HSET room:%d:msg:%d sent_by %d message %b date %lld",
-                        chat_id, message->msg_id, 
+                        id, message->msg_id, 
                         message->sent_by,
                         message->message, strlen(message->message),
                         message->date);
@@ -34,12 +34,12 @@ int redis_room_message_write(int chat_id, message_t *messages, int message_amoun
     return 0;
 }
 
-int redis_room_message_read(int chat_id, message_t **messages, int message_amount){
+int redis_room_message_read(int id, message_t **messages, int message_amount){
     redisContext *c = redis_get();
 
     *messages = malloc(message_amount * sizeof(message_t));
 
-    redisReply *r = redisCommand(c, "LRANGE room:%d:messages 0 %d", chat_id, message_amount - 1);
+    redisReply *r = redisCommand(c, "LRANGE room:%d:messages 0 %d", id, message_amount - 1);
 
     if(r == NULL || r->type != REDIS_REPLY_ARRAY) {
         printf("[REDIS] >> Failed to read message list!\n");
@@ -58,7 +58,7 @@ int redis_room_message_read(int chat_id, message_t **messages, int message_amoun
         message_t *m = &(*messages)[i];
         m->msg_id = (int) atoi(r->element[i]->str);
 
-        redisReply *h = redisCommand(c, "HMGET room:%d:msg:%d sent_by message date", chat_id, m->msg_id);
+        redisReply *h = redisCommand(c, "HMGET room:%d:msg:%d sent_by message date", id, m->msg_id);
 
         if(h == NULL || h->type != REDIS_REPLY_ARRAY){
             printf("[REDIS] >> FAILED TO READ MESSAGE HAS FOR ID %d\n", m->msg_id);
@@ -106,30 +106,46 @@ int redis_room_write(room_t room){
         return -1;
     }
 
-    if(room.chat_id == NULL || room.users == NULL || room.messages == NULL){
+    if(room.id == NULL || room.users == NULL || room.messages == NULL){
         printf("[%d][REDIS] >> ROOM IS NULL WHILE WRITING!\n", getpid());
         return -1;
     }
 
-    redisCommand(c, "HSET room:%d user_amount %d message_amount %d", room.chat_id, room.user_amount, room.message_amount);
+    redisCommand(c, "HSET room:%d user_amount %d message_amount %d", room.id, room.user_amount, room.message_amount);
 
     for(int i = 0; i < room.user_amount; i++){
-        redisCommand(c, "RPUSH room:%d:users %d", room.chat_id, room.users[i]);
+        redisCommand(c, "RPUSH room:%d:users %d", room.id, room.users[i]);
     }
 
-    redis_room_message_write(room.chat_id, room.messages, room.message_amount);
+    redis_room_message_write(room.id, room.messages, room.message_amount);
     
     return 0;
 }
 
-int redis_room_read(int chat_id, room_t *room){
+int redis_room_exist(int id){
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "EXISTS room:%d", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> ROOM EXIST CHECK FAILED!\n", getpid());
+        return -1;
+    }
+
+    int exists = r->integer;
+    freeReplyObject(r);
+
+    return exists == 1 ? 0 : -1;
+}
+
+int redis_room_read(int id, room_t *room){
     redisContext *c = redis_get();
 
     if (c == NULL || c->err) {
         return -1;
     }
 
-    redisReply *r = redisCommand(c, "HMGET room:%d user_amount message_amount", chat_id);
+    redisReply *r = redisCommand(c, "HMGET room:%d user_amount message_amount", id);
 
     if(r == NULL){
         printf("[%d][REDIS] >> ROOM READ REPLY IS NULL!\n", getpid());
@@ -142,21 +158,21 @@ int redis_room_read(int chat_id, room_t *room){
         return -1;
     }
 
-    room->chat_id = chat_id;
+    room->id = id;
     room->user_amount = atoi(r->element[0]->str);
     room->message_amount = atoi(r->element[1]->str);
 
     room->users = malloc(room->user_amount * sizeof(int));
     room->messages = malloc(room->message_amount * sizeof(message_t));
 
-    r = redisCommand(c, "LRANGE room:%d:users 0 -1", room->chat_id);
+    r = redisCommand(c, "LRANGE room:%d:users 0 -1", room->id);
     for(int i = 0; i < room->user_amount; i++){
         room->users[i] = atoi(r->element[i]->str);
     }
 
     freeReplyObject(r);
 
-    if(redis_room_message_read(room->chat_id, &room->messages, room->message_amount) == -1){
+    if(redis_room_message_read(room->id, &room->messages, room->message_amount) == -1){
         printf("[%d][REDIS] >> REDIS ROOM MESSAGE READ FAIL!\n", getpid());
         return -1;
     }

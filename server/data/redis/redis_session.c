@@ -13,7 +13,7 @@ static const char *hex_digits = "0123456789abcdef";
 int redis_session_exist(const char *session){
     redisContext *c = redis_get();
 
-    redisReply *r = redisCommand(c, "HEXISTS session:%s user_id", session);
+    redisReply *r = redisCommand(c, "HEXISTS session:%s id", session);
 
     if(r == NULL){
         printf("[%d][REDIS] >> REDIS EXIST REPLY IS NULL: %s\n", getpid(), c->errstr);
@@ -32,7 +32,7 @@ int redis_session_exist(const char *session){
     return exist == 1 ? 0 : -1;
 }
 
-int redis_session_write(char **session_key, int user_id){
+int redis_session_write(char **session_key, int id){
     *session_key = malloc((SESSION_KEY_SIZE + 1) * sizeof(char));
     srand(time(NULL));
 
@@ -47,7 +47,7 @@ int redis_session_write(char **session_key, int user_id){
         printf("c is NULL\n");
     }
 
-    redisReply *r = redisCommand(c, "HSET session:%s user_id %d", *session_key, user_id);
+    redisReply *r = redisCommand(c, "HSET session:%s id %d", *session_key, id);
 
     if(!r){
         printf("[%d][REDIS] >> REDIS REPLY IS NULL WHILE WRITING!\n", getpid());
@@ -64,7 +64,7 @@ int redis_session_write(char **session_key, int user_id){
     return 0;
 }
 
-// Get user_id with session token
+// Get id with session token
 int redis_session_read(const char *session){
     if(redis_session_exist(session)){
         return -1;
@@ -72,19 +72,19 @@ int redis_session_read(const char *session){
 
     redisContext *c = redis_get();
 
-    redisReply *r = redisCommand(c, "HGET session:%s user_id", session);
+    redisReply *r = redisCommand(c, "HGET session:%s id", session);
 
-    int user_id = r->str ? atoi(r->str) : -1;
+    int id = r->str ? atoi(r->str) : -1;
 
     freeReplyObject(r);
-    return user_id;
+    return id;
 }
 
 
 int redis_session_delete(const char *session){
     redisContext *c = redis_get();
 
-    redisReply *r = redisCommand(c, "HDEL session:%s user_id", session);
+    redisReply *r = redisCommand(c, "HDEL session:%s id", session);
 
     if(r->integer == 1 && r != NULL){
         printf("[%d][REDIS] >> Session:%s has been successfully deleted.\n", getpid(), session);

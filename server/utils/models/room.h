@@ -3,7 +3,7 @@
 #include "server/utils/models/message.h"
 
 typedef struct room{
-    int chat_id;
+    int id;
     int *users;
     int user_amount;
     message_t *messages;
