@@ -146,3 +146,19 @@ int redis_user_read(char *session, user_t *user){
     freeReplyObject(r);
     return 0;
 }
+
+int redis_user_exist(int id){
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "EXISTS user:%d", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> USER EXIST CHECK FAILED!\n", getpid());
+        return -1;
+    }
+
+    int exists = r->integer;
+    freeReplyObject(r);
+
+    return exists == 1 ? 0 : -1;
+}

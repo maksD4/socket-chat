@@ -199,3 +199,16 @@ int mongodb_room_write(room_t room){
     bson_destroy(room_bson);
     return 0;
 }
+
+int mongodb_room_any_online(int id, room_t *room){
+    for(int i = 0; i < room->user_amount; i++){
+        if(id == room->users[i]){
+            continue;
+        }
+
+        if(!redis_user_exist(room->users[i])){
+            return 0;
+        }
+    }
+    return -1;
+}

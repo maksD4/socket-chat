@@ -2,6 +2,7 @@
 #include <stdint.h>
 #define CONSTANTS_H
 
+static const uint16_t MAIN_PORT = 10102;
 static const uint16_t LOGIN_PORT = 5033;
 
 static const int ID_SIZE = 4;

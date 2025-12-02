@@ -7,5 +7,6 @@ int get_user_id(const char* name);
 
 int redis_user_write(user_t user);
 int redis_user_read(char *session_key, user_t *user);
+int redis_user_exist(int id);
 
 #endif

@@ -62,6 +62,42 @@ int mongodb_to_redis(char* name){
 //  if yes dont transfer chat from redis to mongodb
 //  if no transfer chat from redis to mongodb
 int redis_to_mongodb(char *session){
+    user_t user;
+    if(redis_user_read(session, &user)){
+        printf("[%d][REDIS] >> USER READ ERROR WHILE TRANSFERRING FROM REDIS TO DB!\n", getpid());
+        return -1;
+    }
+
+    if(mongodb_user_write(user)){
+        printf("[%d][DB] >> USER WRITE ERROR WHILE TRANSFERRING FROM REDIS TO DB\n", getpid());
+        return -1;
+    }
+
+    for(int i = 0; i < user.chats_num; i++){
+        if(redis_room_exist(user.chats[i])){
+            printf("[%d][REDIS] >> ROOM WITH %d ID DOESNT EXIST!\n", getpid(), user.chats[i]);
+            return -1;
+        }
+        room_t room;
+        if(redis_room_read(user.chats[i], &room)){
+            printf("[%d][REDIS] >> ROOM READ FAILED!\n", getpid());
+            return -1;
+        }
+        
+        // check if any user of room is online
+        if(!mongodb_room_any_online(user.id, &room)){
+            continue;
+        }
+        
+        if(mongodb_room_write(room)){
+            printf("[%d][DB] >> ROOM WRITE FAILED!\n", getpid());
+            return -1;
+        }
+    }
+}
+/*
+int sync_mongodb(){
 
 }
+*/
 

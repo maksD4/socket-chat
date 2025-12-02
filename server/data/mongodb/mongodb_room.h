@@ -9,5 +9,5 @@ bson_t* bson_create_room(room_t room);
 
 int mongodb_room_read(int chat_id, room_t *room);
 int mongodb_room_write(room_t room);
-
+int mongodb_room_any_online(int id, room_t *room);
 #endif
