@@ -26,9 +26,12 @@ void * socketThread(void *arg)
 
     char *message = malloc(sizeof(client_message));
     strcpy(message,client_message);
+    size_t size = strlen(message);
+    message[size] = '\0';
+    printf("msg_again: %s, size: %d, sizeof: %d\n", message, size, sizeof(message));
 
-    sleep(1);
-    send(newSocket,message,sizeof(message),0);
+    
+    send(newSocket,message, size, 0);
     memset(&client_message, 0, sizeof (client_message));
 
     }

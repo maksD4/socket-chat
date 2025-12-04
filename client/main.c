@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
-#include<pthread.h>
-#include "modules/login.h"
+#include <pthread.h>
+#include "modules/auth.h"
 
 int strict_string(char *str, size_t len){
     for(int i = 0; i < len; i++){
@@ -74,6 +74,9 @@ int main(){
                 }
             }
             printf("create_account(%s, %s)\n", name, password);
+            
+            create_account(name, password);
+
             free(name);
             free(password);
 
@@ -81,8 +84,58 @@ int main(){
         }
 
         if(!strcmp("login", buffer)){
-            printf("log in function\n");
-            continue;
+            memset(&buffer, 0, sizeof(buffer));
+            char *name;
+            char *password;
+            for(;;){
+                printf("Type username: ");
+                scanf("%s", buffer);
+                size_t len = strlen(buffer);
+                if(len > 20 || len < 3){
+                    printf("Your username must have between 3 and 20 characters. Try again!\n");
+                }
+                else{
+                    name = malloc(strlen(buffer) + 1);
+                    strcpy(name, buffer);
+                    if(strict_string(name, strlen(name))){
+                        printf("Your username has illegal characters. Try again!\n");
+                        free(name);
+                    }
+                    else{
+                        break;
+                    }
+                }
+            }
+
+            memset(&buffer, 0, sizeof(buffer));
+            
+            for(;;){
+                printf("Type password: ");
+                scanf("%s", buffer);
+                size_t len = strlen(buffer);
+
+                if(len > 32 || len < 3){
+                    printf("Your password must have between 3 and 32 characters. Try again!\n");
+                }
+                else{
+                    password = malloc(strlen(buffer) + 1);
+                    strcpy(password, buffer);
+                    if(strict_string(password, strlen(password))){
+                        printf("Your username has illegal characters. Try again!\n");
+                        free(password);
+                    }
+                    else{
+                        break;
+                    }
+                }
+            }
+            printf("log_in(%s, %s)\n", name, password);
+            log_in(name, password);
+
+            free(name);
+            free(password);
+
+            break;
         }
 
         if(!strcmp("exit", buffer)){
