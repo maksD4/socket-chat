@@ -10,17 +10,20 @@
 #include <arpa/inet.h>
 
 #include "client.h"
+#include "packets.h"
 
 struct user user;
 
-void set_user(char *name, char *session_key){
+void set_name(char* name){
     user.name = malloc(strlen(name) + 1);
-    if(user.name == NULL){
-        perror("malloc failed!");
-        exit(1);
-    }
-    strcpy(user.name, name);
+        if(user.name == NULL){
+            perror("malloc failed!");
+            exit(1);
+        }
+        strcpy(user.name, name);
+}
 
+void set_session(char *name, char *session_key){
     user.session_key = malloc(strlen(session_key) + 1);
     if(user.session_key == NULL){
         perror("malloc failed!");
@@ -104,16 +107,18 @@ int server_connect(char *name, char *session_key, int port){
     }
     sleep(1);
 
-    for(int i = 0; i < 5; i++){
-        if(send_to_server("An example message!")){
-            printf("Send message for-loop failed!\n");
-            server_disconnect();
-            return -1;
-        }
-        usleep(10000);
-    }
+    char** msgs = malloc(4 * sizeof(char *));
+    msgs[0] = get_friend_add_packet(session_key, "Alice");
+    msgs[1] = get_friend_add_packet(session_key, "Adam");
+    msgs[2] = get_friend_removal_packet(session_key, "Adam");
+    msgs[3] = get_logout_packet(session_key);
+    send_to_server(msgs[0]);
+    send_to_server(msgs[1]);
     sleep(1);
-    send_to_server("Hello world!");
+    send_to_server(msgs[2]);
+    usleep(250000);
+    send_to_server(msgs[3]);
+    free(msgs);
 
     return 0;
 }

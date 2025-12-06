@@ -86,7 +86,7 @@ int log_in(char* name, char *password){
         return -1;
     }
 
-    char *message = get_packet_logi(name, password);
+    char *message = get_login_packet(name, password);
     char *received_message;
 
     for(int i = 0; i < 3; i++){
@@ -130,7 +130,7 @@ int create_account(char *name, char *password){
         return -1; 
     }
     
-    char *message = get_packet_accc(name, password);
+    char *message = get_account_creation_packet(name, password);
     char *received_message;
     
     for(int i = 0; i < 3; i++){
