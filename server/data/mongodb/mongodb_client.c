@@ -4,7 +4,7 @@
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 #include "server/data/mongodb/mongodb_client.h"
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 mongoc_client_t *client;
 mongoc_database_t *database;

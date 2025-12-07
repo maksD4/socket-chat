@@ -3,7 +3,7 @@
 #include "server/utils/models/user.h"
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 void print_user(user_t user);
 void print_message(message_t msg);

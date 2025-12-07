@@ -2,7 +2,7 @@
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/data/mongodb/mongodb_room.h"
@@ -49,7 +49,7 @@ int mongodb_to_redis(char* name){
     }
 
     //free(user.name);
-    free(user.password);
+    //free(user.password);
     free(user.friends);
     free(user.chats);
     return 0;

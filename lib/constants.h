@@ -9,7 +9,7 @@ static const int ID_SIZE = 4;
 static const int SESSION_KEY_SIZE = 16;
 
 static const int NAME_MIN_SIZE = 3;
-static const int NAME_MAX_SIZE = 16;
+static const int NAME_MAX_SIZE = 20;
 
 static const int PASSWORD_MIN_SIZE = 3;
 static const int PASSWORD_MAX_SIZE = 32;

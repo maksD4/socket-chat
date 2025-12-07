@@ -11,7 +11,7 @@
 #include <fcntl.h> // for open
 
 
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 // function in separate fork that waits for login connection and data then proceed
 // 1. Client presses button to log in with valid credentials
@@ -24,6 +24,16 @@
 // 7. Server checks if any of data is in redis, if not loads them from db to redis
 // 8. Server sends (partially) data to client
 char packet_buffer[512];
+
+int auth(char* name, char* password){
+    char fixed_name[NAME_MAX_SIZE + 1], fixed_password[PASSWORD_MAX_SIZE + 1];
+    snprintf(fixed_name, NAME_MAX_SIZE, name);
+    snprintf(fixed_password, PASSWORD_MAX_SIZE, password);
+
+
+
+    return 0;
+}
 
 void * login_thread(void *arg){
     printf("new thread \n");

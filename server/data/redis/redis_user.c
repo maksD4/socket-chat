@@ -110,7 +110,7 @@ int redis_user_read(char *session, user_t *user){
 
     redisReply *r = redisCommand(c, "HMGET user:%d name password friends_num chats_num", user->id);
 
-    if(r->type != REDIS_REPLY_ARRAY || r-> elements != 4){
+    if(r->type != REDIS_REPLY_ARRAY || r->elements != 4){
         fprintf(stderr, "HMGET returned unexpected format!\n");
         freeReplyObject(r);
         return -1;
@@ -161,4 +161,22 @@ int redis_user_exist(int id){
     freeReplyObject(r);
 
     return exists == 1 ? 0 : -1;
+}
+
+int redis_user_get_name(int id, char **name){
+    if(redis_user_exist(id)){
+        return -1;
+    }
+
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand(c, "HGET user:%d name", id);
+
+    if(r == NULL || r->elements < 1){
+        printf("[%d][REDIS] >> USERNAME READ FAILED!\n", getpid());
+        return -1;
+    }
+
+    *name = r->element[0]->str;
+    return 0;
 }

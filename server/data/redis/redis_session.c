@@ -6,7 +6,7 @@
 #include <hiredis/hiredis.h>
 
 #include "server/data/redis/redis_client.h"
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 static const char *hex_digits = "0123456789abcdef";
 

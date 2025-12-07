@@ -8,6 +8,7 @@
 #include <unistd.h> // for close
 #include <pthread.h>
 #include "modules/auth.h"
+#include "lib/constants.h"
 
 int strict_string(char *str, size_t len){
     for(int i = 0; i < len; i++){
@@ -35,7 +36,7 @@ int main(){
                 printf("Type username: ");
                 scanf("%s", buffer);
                 size_t len = strlen(buffer);
-                if(len > 20 || len < 3){
+                if(len > NAME_MAX_SIZE || len < NAME_MIN_SIZE){
                     printf("Your username must have between 3 and 20 characters. Try again!\n");
                 }
                 else{
@@ -58,7 +59,7 @@ int main(){
                 scanf("%s", buffer);
                 size_t len = strlen(buffer);
 
-                if(len > 32 || len < 3){
+                if(len > PASSWORD_MAX_SIZE || len < PASSWORD_MIN_SIZE){
                     printf("Your password must have between 3 and 32 characters. Try again!\n");
                 }
                 else{

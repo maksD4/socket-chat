@@ -1,6 +1,6 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 typedef struct message
 {

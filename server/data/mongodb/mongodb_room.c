@@ -3,9 +3,10 @@
 
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/data/mongodb/mongodb_room.h"
+#include "server/data/redis/redis_user.h"
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 bson_t bson_create_message(message_t msg){
     bson_t doc;

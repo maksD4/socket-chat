@@ -7,7 +7,7 @@
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/utils/models/user.h"
 #include "server/utils/models/models_print.h"
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 
 bson_t bson_create_user(user_t user){
     bson_t doc;

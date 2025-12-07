@@ -19,6 +19,7 @@
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_room.h"
+#include "server/data/redis/redis_user.h"
 #include "server/data/bridge.h"
 #include "server/modules/server.h"
 
@@ -157,6 +158,9 @@ void server(){
 
         printf("session_exist: %d\n", redis_session_exist(test_session));
     }
+
+    int bob_id = get_user_id("Bob");
+    printf("Bob's id: %d\n", bob_id);
 
     for(;;){
         printf("echo!\n");

@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <hiredis/hiredis.h>
-#include "server/utils/constants.h"
+#include "lib/constants.h"
 #include "server/data/redis/redis_client.h"
 #include "server/utils/models/user.h"
 
