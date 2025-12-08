@@ -8,7 +8,7 @@
 #include <unistd.h> // for close
 #include <pthread.h>
 #include "modules/auth.h"
-#include "lib/constants.h"
+#include "../lib/constants.h"
 
 int strict_string(char *str, size_t len){
     for(int i = 0; i < len; i++){

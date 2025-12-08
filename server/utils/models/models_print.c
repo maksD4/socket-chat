@@ -55,8 +55,8 @@ void print_room(room_t room){
 user_t create_user(int id, char *name, char *password, int *friends, int friends_num, int *chats, int chats_num){
     user_t u;
     u.id = id;
-    u.name = name;
-    u.password = password;
+    strcpy(u.name, name);
+    strcpy(u.password, password);
     u.friends = friends;
     u.friends_num = friends_num;
     u.chats = chats;

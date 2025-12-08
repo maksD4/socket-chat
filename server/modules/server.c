@@ -159,8 +159,10 @@ void server(){
         printf("session_exist: %d\n", redis_session_exist(test_session));
     }
 
-    int bob_id = get_user_id("Bob");
-    printf("Bob's id: %d\n", bob_id);
+    printf("Bob's id: %d\n", get_user_id("Bob"));
+    printf("Alice's id: %d\n", get_user_id("Alice"));
+    printf("auth: %d\n", auth("Robert", "wrong_password"));
+    printf("auth2: %d\n", auth("Robert", "password"));
 
     for(;;){
         printf("echo!\n");

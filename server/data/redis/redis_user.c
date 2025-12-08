@@ -17,6 +17,18 @@ int get_user_id(const char* name){
                     "}");
     mongodb_get_doc("USER", filter, opts, &doc);
 
+    if(!doc){
+        return -1;
+    }
+
+    if(bson_empty(doc)){
+        return -1;
+    }        
+
+    if(!bson_has_field(doc, "id")){
+        return -1;
+    }
+
     int id;
     bson_iter_t iter;
     if(bson_iter_init_find(&iter, doc, "id") && BSON_ITER_HOLDS_INT32(&iter)){

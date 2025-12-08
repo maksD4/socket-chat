@@ -59,6 +59,8 @@ int recognize_packet(char* msg){
             }
             break;
         case MSG_LOGI:
+            
+
             if(strlen(msg) < 21){
                 // session_key extraction fail
                 return -1;

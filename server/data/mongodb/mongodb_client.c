@@ -10,6 +10,45 @@ mongoc_client_t *client;
 mongoc_database_t *database;
 int highest_user_id;
 
+void counter_init(const char* collection_name){
+    if(!collection_name){
+        return;
+    }
+
+    // Build counter name: <collection_name>_id
+    char counter_name[64];
+    snprintf(counter_name, sizeof(counter_name), "%s_id", collection_name);
+
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "COUNTERS");
+    if(!collection){
+        fprintf(stderr, "Failed to get counters collection.\n");
+        return;
+    }
+
+    bson_t *filter = BCON_NEW("_id", BCON_UTF8(counter_name));
+    bson_t *update = BCON_NEW(
+        "$setOnInsert", "{",
+            "seq", BCON_INT32(1),
+        "}"
+    );
+
+    bson_error_t error;
+    // Upsert: insert if it doesn't exist
+    int success = mongoc_collection_update_one(collection, filter, update,
+        mongoc_update_flags_new(MONGOC_UPDATE_UPSERT), NULL, &error);
+
+    if(!success){
+        fprintf(stderr, "Failed to initialize counter '%s': %s\n", counter_name, error.message);
+    }
+    else{
+        printf("Counter '%s' initialized successfully (or already exists).\n", counter_name);
+    }
+
+    bson_destroy(filter);
+    bson_destroy(update);
+    mongoc_collection_destroy(collection);
+}
+
 int mongodb_init(){
     mongoc_init();
 
@@ -33,6 +72,7 @@ int mongodb_init(){
     }
     mongodb_clear_collection("USER");
     mongodb_clear_collection("ROOM");
+    mongodb_clear_collection("COUNTERS");
 
     // if collection exist then coll is NULL
     mongoc_collection_t *user_col = mongoc_database_create_collection(database, "USER", NULL, &error);
@@ -50,7 +90,8 @@ int mongodb_init(){
     // print USER collection
     mongodb_print_collection("USER");
 
-    highest_user_id = mongodb_get_highest_id("USER");
+    counter_init("USER");
+    counter_init("ROOM");
 
     mongoc_collection_destroy(user_col);
     mongoc_collection_destroy(room_col);
@@ -175,31 +216,48 @@ int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, c
     return 0;
 }   
 
-int mongodb_get_highest_id(const char *collection_name){
-    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
-    int id = 0;
+int get_next_id(const char* collection_name){
+    if(!collection_name){
+        return -1;
+    }
 
-    const bson_t *doc;
-    bson_t *filter = bson_new();
-    bson_t *opts = BCON_NEW("sort", "{",
-                    "user_id", BCON_INT32(-1), "}", 
-                    "limit", BCON_INT64(1));
+    // Build counter name: <collection_name>_id
+    char counter_name[64];
+    snprintf(counter_name, sizeof(counter_name), "%s_id", collection_name);
 
-    mongoc_cursor_t *results = mongoc_collection_find_with_opts(collection, filter, opts, NULL);
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, "COUNTERS");
+    if(!collection){
+        fprintf(stderr, "Failed to get COUNTERS collection\n");
+        return -1;
+    }
 
-    if(mongoc_cursor_next(results, &doc)){
+    bson_t *filter = BCON_NEW("_id", BCON_UTF8(counter_name));
+    bson_t *update = BCON_NEW("$inc", "{", "seq", BCON_INT32(1), "}"); // Increment by one
+    bson_t *reply = bson_new();
+    bson_error_t error;
+
+    bool success = mongoc_collection_find_and_modify(collection, filter, NULL, update,
+                                                    NULL, false, true, true, reply, &error);
+
+    int next_id = -1;
+    if(!success){
+        fprintf(stderr, "Failed to get next ID: %s\n", error.message);
+    } 
+    else{
         bson_iter_t iter;
-        if(bson_iter_init_find(&iter, doc, "user_id") && BSON_ITER_HOLDS_INT32(&iter)){
-            id = bson_iter_int32(&iter);
+        if(bson_iter_init_find(&iter, reply, "seq") && BSON_ITER_HOLDS_INT32(&iter)){
+            next_id = bson_iter_int32(&iter);
         }
     }
 
-    mongoc_cursor_destroy(results);
+    bson_destroy(reply);
     bson_destroy(filter);
-    bson_destroy(opts);
+    bson_destroy(update);
+    mongoc_collection_destroy(collection);
 
-    return id;
+    return next_id;
 }
+
 
 void mongodb_print_collection(const char *collection_name){
     bson_t *query = bson_new();
@@ -215,7 +273,7 @@ void mongodb_print_collection(const char *collection_name){
     }
 
     bson_error_t error;
-    if (mongoc_cursor_error(results, &error)) {
+    if(mongoc_cursor_error(results, &error)){
         fprintf(stderr, "Cursor Error: %s\n", error.message);
     }
 

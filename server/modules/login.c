@@ -23,37 +23,27 @@
 // 6. Client ask for own user data with session key(friends, chats)
 // 7. Server checks if any of data is in redis, if not loads them from db to redis
 // 8. Server sends (partially) data to client
-char packet_buffer[512];
-
-int auth(char* name, char* password){
-    char fixed_name[NAME_MAX_SIZE + 1], fixed_password[PASSWORD_MAX_SIZE + 1];
-    snprintf(fixed_name, NAME_MAX_SIZE, name);
-    snprintf(fixed_password, PASSWORD_MAX_SIZE, password);
-
-
-
-    return 0;
-}
+char packet_buffer[2048];
 
 void * login_thread(void *arg){
     printf("new thread \n");
     int newSocket = *((int *)arg);
     int n;
     for(;;){
-        n=recv(newSocket , packet_buffer , 2000 , 0);
-
-        // TODO: handle login packet (point 4)
-
-        printf("%s\n",packet_buffer);
-            if(n<1){
-                break;
-            }
+        n=recv(newSocket ,packet_buffer, 2000 , 0);
+        printf("%s\n", packet_buffer);
+        if(n<1){
+            break;
+        }
 
         char *message = malloc(sizeof(packet_buffer));
         strcpy(message, packet_buffer);
+        size_t size = strlen(message);
+        message[size] = '\0';
+        printf("msg_again: %s, size: %d, sizeof: %d\n", message, size, sizeof(message));
 
-        sleep(1);
-        send(newSocket,message,sizeof(message),0);
+        
+        send(newSocket,message, size, 0);
         memset(&packet_buffer, 0, sizeof (packet_buffer));
 
     }

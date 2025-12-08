@@ -16,14 +16,14 @@ struct user user;
 
 void set_name(char* name){
     user.name = malloc(strlen(name) + 1);
-        if(user.name == NULL){
-            perror("malloc failed!");
-            exit(1);
-        }
-        strcpy(user.name, name);
+    if(user.name == NULL){
+        perror("malloc failed!");
+        exit(1);
+    }
+    strcpy(user.name, name);
 }
 
-void set_session(char *name, char *session_key){
+void set_session(char *session_key){
     user.session_key = malloc(strlen(session_key) + 1);
     if(user.session_key == NULL){
         perror("malloc failed!");
@@ -72,7 +72,8 @@ int send_to_server(char *message){
 }
 
 int server_connect(char *name, char *session_key, int port){
-    set_user(name, session_key);
+    set_name(name);
+    set_session(session_key);
 
     connection_t *c = &user.connection;
 

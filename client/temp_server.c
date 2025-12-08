@@ -18,21 +18,21 @@ void * socketThread(void *arg)
   int newSocket = *((int *)arg);
   int n;
   for(;;){
-    n=recv(newSocket , client_message , 2000 , 0);
-    printf("%s\n",client_message);
-        if(n<1){
-            break;
-        }
+      n=recv(newSocket , client_message , 2000 , 0);
+      printf("%s\n",client_message);
+      if(n<1){
+          break;
+      }
 
-    char *message = malloc(sizeof(client_message));
-    strcpy(message,client_message);
-    size_t size = strlen(message);
-    message[size] = '\0';
-    printf("msg_again: %s, size: %d, sizeof: %d\n", message, size, sizeof(message));
+      char *message = malloc(sizeof(client_message));
+      strcpy(message,client_message);
+      size_t size = strlen(message);
+      message[size] = '\0';
+      printf("msg_again: %s, size: %d, sizeof: %d\n", message, size, sizeof(message));
 
-    
-    send(newSocket,message, size, 0);
-    memset(&client_message, 0, sizeof (client_message));
+      
+      send(newSocket,message, size, 0);
+      memset(&client_message, 0, sizeof (client_message));
 
     }
     printf("Exit socketThread \n");
