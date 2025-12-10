@@ -22,6 +22,7 @@ static const int ROOM_USERS_MAX = 16;
 static const int ROOM_NUM_SIZE = 2; // Common logarithm of ROOM_MAX
 
 #define MESSAGE_MAX_SIZE 384
+#define PACKET_MAX_SIZE 1024
 
 static const char DB_NAME[14] = "chat_database";
 

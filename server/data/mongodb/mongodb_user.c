@@ -41,6 +41,71 @@ bson_t bson_create_user(user_t user){
     return doc;
 }
 
+int mongodb_user_get_id(const char* name){
+    const bson_t *doc;
+    bson_t *filter = BCON_NEW("name", BCON_UTF8(name));
+    bson_t *opts = BCON_NEW("projection", "{",
+                    "_id", BCON_BOOL(false),
+                    "id", BCON_BOOL(true),
+                    "}");
+    mongodb_get_doc("USER", filter, opts, &doc);
+
+    if(!doc){
+        return -1;
+    }
+
+    if(bson_empty(doc)){
+        return -1;
+    }        
+
+    if(!bson_has_field(doc, "id")){
+        return -1;
+    }
+
+    int id;
+    bson_iter_t iter;
+    if(bson_iter_init_find(&iter, doc, "id") && BSON_ITER_HOLDS_INT32(&iter)){
+        id = bson_iter_int32(&iter);
+    }
+    else{
+        return -1;
+    }
+
+    //printf("get_user_id(%s): %d\n", name, id);
+
+    bson_destroy(filter);
+    bson_destroy(opts);
+    return id;
+}
+
+char* mongodb_user_get_name(int id){
+    const bson_t *doc;
+    bson_t *filter = BCON_NEW("id", BCON_INT32(id));
+    bson_t *opts = BCON_NEW ("projection", "{",
+                    "_id", BCON_BOOL(false),                                                                                                                                                                                                    
+                    "name", BCON_BOOL (true),
+                    "}");
+    if(mongodb_get_doc("USER", filter, opts, &doc)){
+        return "Unknown";
+    }
+    
+    char *name;
+    bson_iter_t iter;
+    if(bson_iter_init_find(&iter, doc, "name") && BSON_ITER_HOLDS_UTF8(&iter)){
+        uint32_t len;
+        name = bson_iter_utf8(&iter, &len);
+    }
+    else{
+        return "Unknown";
+    }
+
+    //printf("get_name(%d): %s\n", id, name);
+
+    bson_destroy(filter);
+    bson_destroy(opts);
+    return name;
+}
+
 int mongodb_user_read(char *name, user_t *user){
     const bson_t *doc;
     bson_t *filter = BCON_NEW("name", BCON_UTF8(name));

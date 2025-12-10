@@ -1,0 +1,96 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+
+#include "server/handlers/packet_handler.h"
+#include "server/handlers/event_handler.h"
+#include "lib/constants.h"
+
+// the smallest packet can be accc/logi or data
+// accc/logi: packet_id (4 chars), 2 semicolons, NAME_MIN_SIZE, PASSWORD_MIN_SIZE
+// data: packet_id (4 chars), semicolon, SESSION_KEY_SIZE
+const static uint8_t PACKET_MIN_SIZE = 4 + 2 + NAME_MIN_SIZE + PASSWORD_MIN_SIZE > 4 + 1 + SESSION_KEY_SIZE ? 5 + SESSION_KEY_SIZE : 6 + NAME_MIN_SIZE + PASSWORD_MIN_SIZE;
+
+void send_state_packet(int client_socket, char* packet, const char* state){
+    size_t len;
+    char reply[9];
+    memcpy(reply, packet, 4);
+    reply[4] = ';';
+
+    if(!strcmp(state, "ok")){
+        memcpy(reply + 5, "ok", 2);
+        len = 7;
+    }
+    else{
+        memcpy(reply + 5, "fail", 4);
+        len = 9;
+    }
+
+    send(client_socket, reply, len, 0);
+}
+/*
+ssize_t total = 0;
+while (total < 9) {
+    ssize_t n = send(client_socket, reply + total, 9 - total, 0);
+    if (n <= 0) {
+        // handle error / disconnect
+        return;
+    }
+    total += n;
+}
+*/
+
+int recognize_packet(int reply_socket, char* packet, size_t packet_size){
+    // packet_id (4 chars), 2 semicolons, NAME_MIN_SIZE, PASSWORD_MIN_SIZE
+    if(packet_size <= PACKET_MIN_SIZE){
+        return -1;
+    }
+    uint32_t id = ID4(packet[0], packet[1], packet[2], packet[3]);
+
+    switch(id){
+        case MSG_SMSG:
+
+            break;
+        case MSG_ACCC:
+            on_account_create(reply_socket, packet, packet_size);
+            break;
+        case MSG_FADD:
+            
+            break;
+        case MSG_FRMV:
+            
+            break;
+        case MSG_LOGI:
+            on_log_in(reply_socket, packet, packet_size);
+            break;
+        case MSG_LOGO:
+            
+            break;
+        case MSG_RCRE:
+            
+            break;
+        case MSG_RDEL:
+            
+            break;
+        case MSG_FRND:
+
+            break;
+        case MSG_ROOM:
+
+            break;
+        case MSG_DATA:
+
+            break;
+        default:
+            printf("ERR >> INVALID MESSAGE ID!\n");
+            return -1;
+    }
+
+    return 0;
+}

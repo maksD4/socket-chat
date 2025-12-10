@@ -84,6 +84,7 @@ int redis_to_mongodb(char *session){
             return -1;
         }
         
+        // TODO: Change it that it looks for online people in redis not mongodb
         // check if any user of room is online
         if(!mongodb_room_any_online(user.id, &room)){
             continue;

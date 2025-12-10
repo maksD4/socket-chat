@@ -10,6 +10,17 @@
 
 static const char *hex_digits = "0123456789abcdef";
 
+char *session_create(){
+    char *array = malloc(SESSION_KEY_SIZE + 1);
+
+    srand(time(NULL));
+    for(int i = 0; i < SESSION_KEY_SIZE; i++){
+        array[i] = hex_digits[rand()%16];
+    }
+    array[SESSION_KEY_SIZE] = '\0';
+    return array;
+}
+
 int redis_session_exist(const char *session){
     redisContext *c = redis_get();
 
@@ -33,13 +44,7 @@ int redis_session_exist(const char *session){
 }
 
 int redis_session_write(char **session_key, int id){
-    *session_key = malloc((SESSION_KEY_SIZE + 1) * sizeof(char));
-    srand(time(NULL));
-
-    for(int i = 0; i < SESSION_KEY_SIZE; i++){
-        (*session_key)[i] = hex_digits[rand()%16];
-    }
-    (*session_key)[SESSION_KEY_SIZE] = '\0';
+    *session_key = session_create();
 
     redisContext *c = redis_get();
 
@@ -59,7 +64,7 @@ int redis_session_write(char **session_key, int id){
         return -1;
     }    
 
-    printf("[%d][REDIS] >> session:%s insert.\n", getpid(), *session_key);
+    printf("[%d][REDIS] >> session:%s inserted.\n", getpid(), *session_key);
     freeReplyObject(r);
     return 0;
 }

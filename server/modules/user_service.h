@@ -3,7 +3,7 @@
 
 int account_creation(char* name, char* password);
 int account_deletion(char* session_key);
-int auth(char* name, char* password);
+int auth(char* name, char* password, int* user_id);
 int friend_add(char* session_key, char* name);
 int friend_remove(char* session_key, char* name);
 int room_create(char* session_key, int users_num, char** users);

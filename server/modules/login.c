@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <fcntl.h> // for open
 
-
+#include "server/handlers/packet_handler.h"
 #include "lib/constants.h"
 
 // function in separate fork that waits for login connection and data then proceed
@@ -23,31 +23,40 @@
 // 6. Client ask for own user data with session key(friends, chats)
 // 7. Server checks if any of data is in redis, if not loads them from db to redis
 // 8. Server sends (partially) data to client
-char packet_buffer[2048];
+uint8_t packet_buffer[PACKET_MAX_SIZE + 1];
 
 void * login_thread(void *arg){
     printf("new thread \n");
     int newSocket = *((int *)arg);
-    int n;
-    for(;;){
-        n=recv(newSocket ,packet_buffer, 2000 , 0);
-        printf("%s\n", packet_buffer);
-        if(n<1){
-            break;
-        }
+    ssize_t n;
+    
+    n=recv(newSocket, packet_buffer, PACKET_MAX_SIZE, 0);
+    printf("%s\n", packet_buffer);
 
-        char *message = malloc(sizeof(packet_buffer));
-        strcpy(message, packet_buffer);
-        size_t size = strlen(message);
-        message[size] = '\0';
-        printf("msg_again: %s, size: %d, sizeof: %d\n", message, size, sizeof(message));
-
-        
-        send(newSocket,message, size, 0);
-        memset(&packet_buffer, 0, sizeof (packet_buffer));
-
+    // packet_id (4 chars)
+    if(n <= 4 || n > PACKET_MAX_SIZE){
+        // send back reply
+        send(newSocket, "fail", 4, 0);
+        pthread_exit(NULL);
     }
-    printf("Exit %s's log in thread!\n", "user");
+
+    char* packet = malloc((size_t)n + 1);
+    if(!packet){
+        // send back reply
+        pthread_exit(NULL);
+    }
+
+    memcpy(packet, packet_buffer, (size_t) n);
+    packet[n] = '\0';
+
+    printf("msg_again: %s, size: %d, sizeof: %d\n", packet, strlen(packet), sizeof(packet));
+
+    if(recognize_packet(newSocket, packet, (size_t)n) == -1){
+       send_fail_packet(newSocket, packet);
+    }
+    
+    memset(&packet_buffer, 0, sizeof (packet_buffer));
+    free(packet);
 
     pthread_exit(NULL);
 }
