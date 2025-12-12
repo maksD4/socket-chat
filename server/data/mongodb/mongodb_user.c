@@ -86,24 +86,27 @@ char* mongodb_user_get_name(int id){
                     "name", BCON_BOOL (true),
                     "}");
     if(mongodb_get_doc("USER", filter, opts, &doc)){
-        return "Unknown";
+        bson_destroy(filter);
+        bson_destroy(opts);
+        return strdup("Unknown");
     }
     
-    char *name;
+    char *result;
     bson_iter_t iter;
     if(bson_iter_init_find(&iter, doc, "name") && BSON_ITER_HOLDS_UTF8(&iter)){
         uint32_t len;
-        name = bson_iter_utf8(&iter, &len);
+        const char* name = bson_iter_utf8(&iter, &len);
+        result = strdup(name);
     }
     else{
-        return "Unknown";
+        result = strdup("Unknown");
     }
 
     //printf("get_name(%d): %s\n", id, name);
 
     bson_destroy(filter);
     bson_destroy(opts);
-    return name;
+    return result;
 }
 
 int mongodb_user_read(char *name, user_t *user){

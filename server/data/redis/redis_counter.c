@@ -28,11 +28,9 @@ int redis_counter_get(char* packet_id, char* session){
     }
 
     if(r->integer == 0){
-        if(redis_counters_set(packet_id, session) == -1){
-            printf("[%d][REDIS] >> COUNTER SET FAILED!\n", getpid());
-            freeReplyObject(r);
-            return 0;
-        }
+        printf("[%d][REDIS] >> COUNTER DOESNT EXIST!\n", getpid());
+        freeReplyObject(r);
+        return 0;
     }
 
     r = redisCommand("GET %s:%s:counter", packet_id, session);
@@ -47,7 +45,22 @@ int redis_counter_get(char* packet_id, char* session){
     return atoi(r->str);
 }
 
-int redis_counter_increment(char* packet_id, char* session){
+int redis_counters_del(char* packet_id, char* session){
+    redisContext *c = redis_get();
+
+    redisReply *r = redisCommand("DEL %s:%s:session", packet_id, session);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> COUNTER GET FAILED!\n", getpid());
+        freeReplyObject(r);
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}
+
+int redis_counters_increment(char* packet_id, char* session){
     redisContext *c = redis_get();
     
     int counter = redis_counter_get(packet_id, session);
@@ -77,7 +90,7 @@ int redis_counter_increment(char* packet_id, char* session){
 int redis_counter_room_set(char* session, int id){
     redisContext *c = redis_get();
     
-    redisReply *r = redisCommand("SET %s:room:%d:counter", session, id);
+    redisReply *r = redisCommand("SET room:%s:%d:counter 0 EX %d", session, id, PACKET_TTL);
 
     if(r == NULL){
         printf("[%d][REDIS] >> COUNTER SET FAILED!\n", getpid());
@@ -92,7 +105,7 @@ int redis_counter_room_set(char* session, int id){
 int redis_counter_room_get(char* session, int id){
     redisContext *c = redis_get();
 
-    redisReply *r = redisCommand("EXISTS %s:room:%d:counter", session, id);
+    redisReply *r = redisCommand("EXISTS room:%s:%d:counter", session, id);
 
     if(r == NULL){
         printf("[%d][REDIS] >> COUNTER EXIST CHECK FAILED!\n", getpid());
@@ -100,14 +113,12 @@ int redis_counter_room_get(char* session, int id){
     }
 
     if(r->integer == 0){
-        if(redis_counters_room_set(session, id) == -1){
-            printf("[%d][REDIS] >> COUNTER SET FAILED!\n", getpid());
-            freeReplyObject(r);
-            return 0;
-        }
+        printf("[%d][REDIS] >> COUNTER DOESNT EXIST!\n", getpid());
+        freeReplyObject(r);
+        return -1;
     }
 
-    r = redisCommand("GET %s:room:%d:counter", session, id);
+    r = redisCommand("GET room:%s:%d:counter", session, id);
 
     if(r == NULL){
         printf("[%d][REDIS] >> COUNTER GET FAILED!\n", getpid());
@@ -133,7 +144,7 @@ int redis_counter_room_increment(char* session, int id){
         return -1;
     }
 
-    redisReply *r = redisCommand("INCR %s:room:%d:counter", session, id);
+    redisReply *r = redisCommand("INCR room:%s:%d:counter", session, id);
 
     if(r == NULL){
         printf("[%d][REDIS] >> COUNTER INCR FAILED!\n", getpid());

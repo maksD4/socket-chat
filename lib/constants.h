@@ -21,6 +21,9 @@ static const int ROOM_MAX = 64;
 static const int ROOM_USERS_MAX = 16;
 static const int ROOM_NUM_SIZE = 2; // Common logarithm of ROOM_MAX
 
+static const int PACKET_FAIL_MAX = 3;
+static const int PACKET_TTL = 60; // Change expiry time to one digit number
+
 #define MESSAGE_MAX_SIZE 384
 #define PACKET_MAX_SIZE 1024
 
