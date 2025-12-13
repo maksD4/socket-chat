@@ -6,7 +6,7 @@ typedef struct message
 {
     int msg_id;
     int sent_by;
-    char message[MESSAGE_MAX_SIZE];
+    char message[MESSAGE_MAX_SIZE + 1];
     long long int date;
 }message_t;
 

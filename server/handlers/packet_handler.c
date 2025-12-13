@@ -19,35 +19,6 @@ const static uint8_t LOGIN_PACKET_MIN_SIZE = 4 + 2 + NAME_MIN_SIZE + PASSWORD_MI
 // data: packet_id (4 chars), semicolon, SESSION_KEY_SIZE
 const static uint8_t PACKET_MIN_SIZE = 4 + 1 + SESSION_KEY_SIZE;
 
-void send_state_packet(int client_socket, char* packet, const char* state){
-    size_t len;
-    char reply[9];
-    memcpy(reply, packet, 4);
-    reply[4] = ';';
-
-    if(!strcmp(state, "ok")){
-        memcpy(reply + 5, "ok", 2);
-        len = 7;
-    }
-    else{
-        memcpy(reply + 5, "fail", 4);
-        len = 9;
-    }
-
-    send(client_socket, reply, len, 0);
-}
-/*
-ssize_t total = 0;
-while (total < 9) {
-    ssize_t n = send(client_socket, reply + total, 9 - total, 0);
-    if (n <= 0) {
-        // handle error / disconnect
-        return;
-    }
-    total += n;
-}
-*/
-
 int recognize_login_packet(int reply_socket, char* packet, size_t packet_size){
     if(packet_size <= LOGIN_PACKET_MIN_SIZE){
         return -1;

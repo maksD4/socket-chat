@@ -64,11 +64,11 @@ user_t create_user(int id, char *name, char *password, int *friends, int friends
     return u;
 }
 
-message_t create_message(int id, int sent_by, char message[MESSAGE_MAX_SIZE]){
+message_t create_message(int id, int sent_by, char* message){
     message_t msg;
     msg.msg_id = id;
     msg.sent_by = sent_by;
-    strcpy(msg.message, message);
+    strncpy(msg.message, message, MESSAGE_MAX_SIZE);
     msg.date = (long long int) time(NULL);
     return msg;
 }

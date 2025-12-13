@@ -124,6 +124,6 @@ int redis_user_get_name(int id, char **name){
         return -1;
     }
 
-    *name = r->element[0]->str;
+    *name = strdup(r->element[0]->str);
     return 0;
 }

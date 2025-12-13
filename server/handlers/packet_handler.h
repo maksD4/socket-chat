@@ -22,8 +22,6 @@ enum{
     MSG_DATA = ID4('d','a','t','a')
 };
 
-//int check_reply_state(char* state);
-void send_state_packet(int client_socket, char* packet, const char* state);
 int recognize_packet(int reply_socket, char* packet, size_t packet_size);
 
 #endif
