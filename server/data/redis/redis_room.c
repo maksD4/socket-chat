@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <hiredis/hiredis.h>
 
+#include "server/data/mongodb/mongodb_user.h" // temporarily
 #include "server/data/redis/redis_room.h"
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_user.h"
@@ -91,7 +92,7 @@ int redis_room_message_read(int id, message_t **messages, int message_amount){
             m->date = 0;
         }
         
-        printf("[REDIS][%s] >> message: %s\ndate: %lld\n", get_name(m->sent_by), m->message, m->date);
+        printf("[REDIS][%s] >> message: %s\ndate: %lld\n", mongodb_user_get_name(m->sent_by), m->message, m->date);
         freeReplyObject(h);
     }
 
@@ -106,7 +107,7 @@ int redis_room_write(room_t room){
         return -1;
     }
 
-    if(room.id == NULL || room.users == NULL || room.messages == NULL){
+    if(room.users == NULL || room.messages == NULL){
         printf("[%d][REDIS] >> ROOM IS NULL WHILE WRITING!\n", getpid());
         return -1;
     }

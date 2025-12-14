@@ -1,5 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 

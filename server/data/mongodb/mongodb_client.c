@@ -31,11 +31,14 @@ void counter_init(const char* collection_name){
             "seq", BCON_INT32(1),
         "}"
     );
+    bson_t opts;
+    bson_init(&opts);
+    BCON_APPEND(&opts, "upsert", BCON_BOOL(true));
 
     bson_error_t error;
     // Upsert: insert if it doesn't exist
     int success = mongoc_collection_update_one(collection, filter, update,
-        mongoc_update_flags_new(MONGOC_UPDATE_UPSERT), NULL, &error);
+        &opts, NULL, &error);
 
     if(!success){
         fprintf(stderr, "Failed to initialize counter '%s': %s\n", counter_name, error.message);
@@ -184,7 +187,7 @@ int mongodb_insert(const char *collection_name, bson_t document){
         BSON_APPEND_INT32(&filter, "id", id);
 
         if(!mongoc_collection_replace_one(collection, &filter, &document, NULL, NULL, &error)){
-            fprintf(stderr, "[%d][DB] >> REPLACE ONE HAS FAILED: %s\n", error.message);
+            fprintf(stderr, "[%d][DB] >> REPLACE ONE HAS FAILED: %s\n", getpid(), error.message);
             bson_destroy(&filter);
             mongoc_collection_destroy(collection);
             return -1;

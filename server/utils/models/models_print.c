@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -55,8 +56,14 @@ void print_room(room_t room){
 user_t create_user(int id, char *name, char *password, int *friends, int friends_num, int *chats, int chats_num){
     user_t u;
     u.id = id;
-    strcpy(u.name, name);
-    strcpy(u.password, password);
+    u.name = strndup(name, NAME_MAX_SIZE + 1);
+    if(u.name == NULL){
+        u.name = strdup("Unknown");
+    }
+    u.password = strndup(password, PASSWORD_MAX_SIZE + 1);
+    if(u.name == NULL){
+        u.name = strdup("Password");
+    }
     u.friends = friends;
     u.friends_num = friends_num;
     u.chats = chats;
@@ -68,7 +75,7 @@ message_t create_message(int id, int sent_by, char* message){
     message_t msg;
     msg.msg_id = id;
     msg.sent_by = sent_by;
-    strncpy(msg.message, message, MESSAGE_MAX_SIZE);
+    snprintf(msg.message, sizeof(msg.message), "%s", message);
     msg.date = (long long int) time(NULL);
     return msg;
 }

@@ -4,6 +4,7 @@
 
 int extract_credentials(const char* packet, char* name, char* password);
 int extract_session(const char* packet, char* session);
+int extract_state(const char* packet);
 
 void on_account_create(int reply_socket, char* packet, size_t packet_size);
 void on_log_in(int reply_socket, char* packet, size_t packet_size);

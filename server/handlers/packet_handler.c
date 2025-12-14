@@ -69,7 +69,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
             on_friend_request(reply_socket, packet, packet_size);
             break;
         case MSG_ROOM:
-            on_room_request(reply_socket, packet, packet_size);
+            //on_room_request(reply_socket, packet, packet_size);
             break;
         case MSG_DATA:
             on_data_request(reply_socket, packet, packet_size); 

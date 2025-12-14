@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/socket.h>
 
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/data/redis/redis_user.h"
@@ -9,6 +10,41 @@
 #include "server/utils/models/user.h"
 #include "server/utils/models/room.h"
 #include "lib/constants.h"
+
+void send_room_packets(int client_socket, char* session_key){
+    
+
+}
+
+void send_state_packet(int client_socket, char* packet, const char* state){
+    size_t len;
+    char reply[9];
+    memcpy(reply, packet, 4);
+    reply[4] = ';';
+
+    if(!strcmp(state, "ok")){
+        memcpy(reply + 5, "ok", 2);
+        len = 7;
+    }
+    else{
+        memcpy(reply + 5, "fail", 4);
+        len = 9;
+    }
+
+    send(client_socket, reply, len, 0);
+}
+
+/*
+ssize_t total = 0;
+while (total < 9) {
+    ssize_t n = send(client_socket, reply + total, 9 - total, 0);
+    if (n <= 0) {
+        // handle error / disconnect
+        return;
+    }
+    total += n;
+}
+*/
 
 char* get_session_packet(char* session_key){
     size_t packet_size = strlen(session_key) + 6;
@@ -56,7 +92,7 @@ char* get_friends_packet(char* session_key){
             strcat(friends, friend_name);
         }
         else{
-            friend_name = get_name(user.friends[i]);
+            friend_name = mongodb_user_get_name(user.friends[i]);
 
             strcat(friends, ";");
             strcat(friends, friend_name);
@@ -113,10 +149,6 @@ char* get_message_packet(message_t msg){
     if(redis_user_get_name(msg.sent_by, &sender) == -1){
         sender = mongodb_user_get_name(msg.sent_by);
     }
-    if(sender == NULL){
-        printf("[%d][PACKET] >> SENDER STRING IS NULL WHILE GETTING MESSAGE PACKET!\n", getpid());
-        return;
-    }
 
     size_t msg_size = strlen(msg.message);
     // 5 - number of semicolons
@@ -158,7 +190,7 @@ char** get_room_message_packet(room_t room, size_t* counter){
         }
         else{
             sum += message_packet_size + 1;
-            strcat(message_packet, ';');
+            strcat(message_packet, ";");
             strcat(message_packet, temp_message_packet);
         }
         free(temp_message_packet);

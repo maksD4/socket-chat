@@ -42,6 +42,7 @@ int auth(char* name, char* password, int* user_id){
 
     if(mongodb_user_read(name, &user)){
         printf("[%d][AUTH] >> DB USER READ FAIL!\n", getpid());
+        *user_id = -1;
         return -1;
     }
 
@@ -50,6 +51,7 @@ int auth(char* name, char* password, int* user_id){
         return 0;
     }
 
+    *user_id = -1;
     return -1;
 }
 

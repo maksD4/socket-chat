@@ -11,6 +11,7 @@
 #include <fcntl.h> // for open
 
 #include "server/handlers/packet_handler.h"
+#include "server/modules/packets.h"
 #include "lib/constants.h"
 
 // function in separate fork that waits for login connection and data then proceed
@@ -49,10 +50,10 @@ void * login_thread(void *arg){
     memcpy(packet, packet_buffer, (size_t) n);
     packet[n] = '\0';
 
-    printf("msg_again: %s, size: %d, sizeof: %d\n", packet, strlen(packet), sizeof(packet));
+    printf("msg_again: %s, size: %d, sizeof: %d\n", packet, (int)strlen(packet), (int)sizeof(packet));
 
     if(recognize_packet(newSocket, packet, (size_t)n) == -1){
-       send_fail_packet(newSocket, packet);
+       send_state_packet(newSocket, packet, "fail");
     }
     
     memset(&packet_buffer, 0, sizeof (packet_buffer));

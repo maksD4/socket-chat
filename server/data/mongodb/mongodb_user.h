@@ -5,8 +5,8 @@
 
 bson_t bson_create_user(user_t user);
 
-int mongodb_user_get_name(int id);
-int mongodb_user_get_id(char* name);
+char* mongodb_user_get_name(int id);
+int mongodb_user_get_id(const char* name);
 
 int mongodb_user_read(char *name, user_t *user);
 int mongodb_user_write(user_t user);

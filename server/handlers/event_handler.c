@@ -12,9 +12,13 @@
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_counter.h"
+#include "server/data/redis/redis_user.h"
 #include "server/handlers/packet_handler.h"
 #include "server/modules/packets.h"
 #include "server/modules/user_service.h"
+#include "server/utils/models/user.h"
+#include "server/utils/models/room.h"
+#include "server/utils/models/message.h"
 #include "lib/constants.h"
 
 int extract_credentials(const char* packet, char* name, char* password){
@@ -139,7 +143,7 @@ void on_log_in(int reply_socket, char* packet, size_t packet_size){
 void on_data_request(int reply_socket, char* packet, size_t packet_size){
     // load user data from db to redis
     char session_key[SESSION_KEY_SIZE + 1];
-    if(extract_session(packet, SESSION_KEY_SIZE) == -1){
+    if(extract_session(packet, session_key) == -1){
         printf("[%d][DATA] >> SESSION EXTRACTION FAILED!\n", getpid());
         send_state_packet(reply_socket, packet, "fail");
         return;
@@ -178,7 +182,7 @@ void on_data_request(int reply_socket, char* packet, size_t packet_size){
 
 void on_friend_request(int reply_socket, char* packet, size_t packet_size){
     char session_key[SESSION_KEY_SIZE + 1];
-    if(extract_session(packet, SESSION_KEY_SIZE) == -1){
+    if(extract_session(packet, session_key) == -1){
         printf("[%d][FRND] >> SESSION EXTRACTION FAILED!\n", getpid());
         send_state_packet(reply_socket, packet, "fail");
         return;

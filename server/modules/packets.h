@@ -10,4 +10,7 @@ char* get_message_packet(message_t msg);
 char* get_state_packet(char* packet_id, char* state);
 char* get_search_query_packet(char* query);
 
+void send_room_packets(int client_socket, char* session_key);
+void send_state_packet(int client_socket, char* packet, const char* state);
+
 #endif

@@ -1,11 +1,14 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <hiredis/hiredis.h>
 
 #include "server/data/redis/redis_user.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_client.h"
 #include "server/data/mongodb/mongodb_client.h"
+#include "server/data/mongodb/mongodb_user.h"
 #include "server/utils/models/user.h"
 
 // Save id, name, password, friends_num, chats_num HSET, but
@@ -26,7 +29,7 @@ int redis_user_write(user_t user){
 
     // Saving friends and chats array in redis
     for(int i = 0; i < user.friends_num; i++){
-        redisCommand(c, "RPUSH user:%d:friends %s", user.id, get_name(user.friends[i]));
+        redisCommand(c, "RPUSH user:%d:friends %s", user.id, mongodb_user_get_name(user.friends[i]));
         //printf("%s's %d friend name: %s\n", user.name, i, get_name(user.friends[i]));
     }
 
@@ -81,7 +84,7 @@ int redis_user_read(char *session, user_t *user){
     // extract char* friends names from user:<id>:friends
     r = redisCommand(c, "LRANGE user:%d:friends 0 -1", user->id);
     for(size_t i = 0; i < r->elements; i++){
-        user->friends[i] = get_user_id(r->element[i]->str);
+        user->friends[i] = mongodb_user_get_id(r->element[i]->str);
     }
 
     

@@ -22,6 +22,7 @@
 #include "server/data/redis/redis_user.h"
 #include "server/data/bridge.h"
 #include "server/modules/server.h"
+#include "server/modules/user_service.h"
 
 #include "server/utils/models/user.h"
 #include "server/utils/models/room.h"
@@ -101,6 +102,7 @@ void server(){
     int friends[2] = {2, 3};
     int chats[1] = {1};
     user_t bob = create_user(1, "Bob", "password", friends, 2, chats, 1);
+
     if(mongodb_user_write(bob)){
         printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
     }
@@ -159,10 +161,13 @@ void server(){
         printf("session_exist: %d\n", redis_session_exist(test_session));
     }
 
-    printf("Bob's id: %d\n", get_user_id("Bob"));
-    printf("Alice's id: %d\n", get_user_id("Alice"));
-    printf("auth: %d\n", auth("Robert", "wrong_password"));
-    printf("auth2: %d\n", auth("Robert", "password"));
+    printf("Bob's id: %d\n", mongodb_user_get_id("Bob"));
+    printf("Alice's id: %d\n", mongodb_user_get_id("Alice"));
+    int id_one, id_two;
+    printf("auth: %d", auth("Robert", "wrong_password", &id_one));
+    printf(", id: %d\n", id_one);
+    printf("auth2: %d", auth("Robert", "password", &id_two));
+    printf(", id: %d\n", id_two);
 
     for(;;){
         printf("echo!\n");
