@@ -10,4 +10,6 @@ typedef struct room{
     int message_amount;
 }room_t;
 
+void free_room(room_t *room);
+
 #endif

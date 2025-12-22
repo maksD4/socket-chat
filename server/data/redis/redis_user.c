@@ -130,3 +130,77 @@ int redis_user_get_name(int id, char **name){
     *name = strdup(r->element[0]->str);
     return 0;
 }
+
+int redis_user_socket_write(int id, int socket){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "HSET user:%d socket %d", id, socket);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> USER SOCKET WRITE FAILED!\n", getpid());
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}
+
+int redis_user_socket_read(int id){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "HGET user:%d socket", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> USER SOCKET READ FAILED!\n", getpid());
+        return -1;
+    }
+
+    if(r->type == REDIS_REPLY_NIL){
+        printf("[%d][REDIS] >> USER SOCKET NOT FOUND!\n", getpid());
+        freeReplyObject(r);
+        return -1;
+    }
+
+    int socket = atoi(r->str);
+    freeReplyObject(r);
+    return socket;
+}
+
+int redis_user_online(int id){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "SADD online %d", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> SETTING USER ONLINE FAILED!\n", getpid());
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}
+
+int redis_user_offline(int id){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "SREM online %d", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> SETTING USER OFFLINE FAILED!\n", getpid());
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}
+
+int redis_is_user_online(int id){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "SISMEMBER online %d", id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> USER ONLINE CHECK FAILED!\n", getpid());
+        return -1;
+    }
+
+    int exist = r->integer;
+    freeReplyObject(r);
+
+    return exist == -1 ? -1 : exist - 1;
+}

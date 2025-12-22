@@ -16,4 +16,6 @@ typedef struct user
     int chats_num;
 }user_t;
 
+void free_user(user_t *user);
+
 #endif
