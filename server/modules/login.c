@@ -113,7 +113,7 @@ pid_t create_login_process(){
 
         //Listen on the socket
         if(listen(loginSocket,50)==0)
-            printf("Listening\n");
+            printf("Listening on login port...\n");
         else
             printf("Error\n");
             pthread_t thread_id;

@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -6,15 +7,11 @@
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/data/redis/redis_user.h"
 #include "server/data/redis/redis_room.h"
+#include "server/data/redis/redis_counter.h"
 #include "server/utils/models/message.h"
 #include "server/utils/models/user.h"
 #include "server/utils/models/room.h"
 #include "lib/constants.h"
-
-void send_room_packets(int client_socket, char* session_key){
-    
-
-}
 
 void send_state_packet(int client_socket, char* packet, const char* state){
     size_t len;
@@ -31,6 +28,35 @@ void send_state_packet(int client_socket, char* packet, const char* state){
         len = 9;
     }
 
+    send(client_socket, reply, len, 0);
+}
+
+void send_numbered_state_packet(int client_socket, char* packet, int* number, const char* state){
+    size_t num_len = snprintf(NULL, 0, "%d", *number);
+    size_t len = 4 + 1 + num_len + 1 + 4; // <packet_id>;<number>;<state>
+    char reply[10 + num_len];
+    memset(reply, 0, 10 + num_len);
+
+    memcpy(reply, packet, 4);
+    reply[4] = ';';
+
+    char* num_str = malloc(num_len + 1);
+
+    snprintf(num_str, num_len + 1, "%d", *number);
+    memcpy(reply + 5, num_str, num_len);
+    free(num_str);
+
+    reply[5 + num_len] = ';';
+
+    if(!strcmp(state, "ok")){
+        memcpy(reply + 6 + num_len, "ok", 2);
+        len -= 2;
+    }
+    else{
+        memcpy(reply + 6 + num_len, "fail", 4);
+    }
+
+    //printf("(%d)packet: %s\n", len, reply);
     send(client_socket, reply, len, 0);
 }
 
@@ -152,16 +178,26 @@ char* get_message_packet(message_t msg){
 
     size_t msg_size = strlen(msg.message);
     // 5 - number of semicolons
-    size_t packet_size = 5 + snprintf(NULL, 0, "%d", msg.msg_id) + strlen(sender) + snprintf(NULL, 0, "%lld", msg.date) + snprintf(NULL, 0, "%d", msg_size) + msg_size + 1;
+    size_t packet_size = 5 + snprintf(NULL, 0, "%d", msg.msg_id) + strlen(sender) + snprintf(NULL, 0, "%lld", msg.date) + snprintf(NULL, 0, "%d", (int)msg_size) + msg_size + 1;
     char* packet = malloc(packet_size);
 
-    snprintf(packet, packet_size, "%d;%s;%lld;%d;%s;", msg.msg_id, sender, msg.date, msg_size, msg.message);
+    snprintf(packet, packet_size, "%d;%s;%lld;%d;%s;", msg.msg_id, sender, msg.date, (int)msg_size, msg.message);
 
     free(sender);
     return packet;
 }
 
-char** get_room_message_packet(room_t room, size_t* counter){
+char* get_room_message_packet(int chat_id, message_t msg){
+    char* msg_struct = get_message_packet(msg);
+    size_t packet_size = snprintf(NULL, 0, "rmsg;%d;") + strlen(msg_struct) + 1;
+    char* packet = malloc(packet_size);
+
+    snprintf(packet, packet_size, "rmsg;%d;%s", chat_id, msg_struct);
+    free(msg_struct);
+    return packet;
+}
+
+char** get_room_message_packets(room_t room, size_t* counter){
     // 4 - packet id, 1 - semicolon
     size_t prefix_size = snprintf(NULL, 0, "rmsg;%d", room.id) + 1;
     char* prefix = malloc(prefix_size);
@@ -203,7 +239,7 @@ char** get_room_message_packet(room_t room, size_t* counter){
     counter++;
 
     char** packets = malloc(*counter * sizeof(char *));
-    for(int i = 0; i < *counter; i++){
+    for(int i = 0; i < (int)(*counter); i++){
         packets[i] = malloc(strlen(temp_packets[i]) + 1);
         strcpy(packets[i], temp_packets[i]);
         free(temp_packets[i]);
@@ -211,6 +247,111 @@ char** get_room_message_packet(room_t room, size_t* counter){
 
     free(temp_packets);
     return packets;
+}
+
+void send_room_packet_fail(int* client_socket, int* chat_id){
+    // "room;<id>;fail"
+    size_t packet_size = 4 + 2 + snprintf(NULL, 0, "%d", *chat_id) + 4 + 1;
+    char* packet = malloc(packet_size);
+
+    snprintf(packet, packet_size, "room;%d;fail", *chat_id);
+
+    send(*client_socket, packet, packet_size, 0);
+    free(packet);
+}
+
+void send_room_packet(int client_socket, char* session_key, int chat_id){
+    // redis_counter_room_get - check if < MAX_PACKET_FAIL
+    int room_packet_counter = redis_counter_room_get(session_key, chat_id);
+    if(room_packet_counter == -1){
+        //printf("[%d][PACKET] >> ROOM PACKET COUNTER FAIL!\n", getpid());
+        send_room_packet_fail(&client_socket, &chat_id);
+        return;
+    }
+
+    if(redis_room_belongs_to_user(session_key, chat_id)){
+        send_room_packet_fail(&client_socket, &chat_id);
+        return;
+    }
+
+    // get room
+    room_t room;
+    if(redis_room_read(chat_id, &room)){
+        printf("[%d][PACKET] >> COULDN'T READ ROOM FROM REDIS!\n", getpid());
+        send_room_packet_fail(&client_socket, &chat_id);
+        return;
+    }
+
+    // get room packet
+    char* room_packet = get_room_packet(room);
+
+    // get message packets
+    size_t message_packets_amount;
+    char **message_packets = get_room_message_packets(room, &message_packets_amount);
+
+    // redis_counter_room_increment
+    if(redis_counter_room_increment(session_key, chat_id)){
+        printf("[%d][PACKET] >> FAILED TO INCREMENT ROOM COUNTER!\n", getpid());
+        send_room_packet_fail(&client_socket, &chat_id);
+        free(room_packet);
+        for(int i = 0; i < (int)message_packets_amount; i++){
+            free(message_packets[i]);
+        }
+        free(message_packets);
+        return;
+    }
+
+    // send room packet
+    send(client_socket, room_packet, strlen(room_packet), 0);
+    free(room_packet);
+
+    // send message packtes with 30 ms latency
+    for(int i = 0; i < (int)message_packets_amount; i++){
+        send(client_socket, message_packets[i], strlen(message_packets[i]), 0);
+        free(message_packets[i]);
+        usleep(30000); // 30ms
+    }
+    free(message_packets);
+}
+
+int room_packet_transfer(int client_socket, char *session_key){
+    // get user
+    user_t user;
+    if(redis_user_read(session_key, &user)){
+        printf("[%d][PACKET] >> COULDN'T READ USER FROM REDIS!\n", getpid());
+        return -1;
+    }
+
+    if(user.chats_num < 1){
+        free(user.chats);
+        free(user.friends);
+        return 0;
+    }
+
+    // redis_counter_room_ids_set
+    if(redis_counter_room_ids_set(session_key, user.chats_num, user.chats)){
+        printf("[%d][PACKET] >> REDIS ROOM IDS SET FAILED!\n", getpid());
+        return -1;
+    }
+
+    // redis_counter_room_set for every room
+    for(int i = 0; i < user.chats_num; i++){
+        if(redis_counter_room_set(session_key, user.chats[i])){
+            printf("[%d][PACKET] >> REDIS ROOM COUNTER SET FAILED!\n", getpid());
+            free(user.chats);
+            free(user.friends);
+            return -1;
+        }
+    }
+
+    int first_id = user.chats[0];
+
+    // send_room_packet
+    send_room_packet(client_socket, session_key, first_id);
+
+    free(user.chats);
+    free(user.friends);
+    return 0;
 }
 
 

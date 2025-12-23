@@ -48,7 +48,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
 
     switch(id){
         case MSG_SMSG:
-
+            on_message_request(reply_socket, packet, packet_size);
             break;
         case MSG_FADD:
             
@@ -57,7 +57,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
             
             break;
         case MSG_LOGO:
-            
+            on_log_out_request(reply_socket, packet, packet_size);
             break;
         case MSG_RCRE:
             
@@ -69,7 +69,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
             on_friend_request(reply_socket, packet, packet_size);
             break;
         case MSG_ROOM:
-            //on_room_request(reply_socket, packet, packet_size);
+            on_room_request(reply_socket, packet, packet_size);
             break;
         case MSG_DATA:
             on_data_request(reply_socket, packet, packet_size); 
