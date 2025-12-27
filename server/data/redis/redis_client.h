@@ -1,7 +1,7 @@
 #ifndef REDIS_CLIENT_H
 #define REDIS_CLIENT_H
 #include "server/utils/models/user.h"
-#include <hiredis/hiredis.h>
+#include <lib/hiredis/hiredis.h>
 #pragma once
 
 int redis_init();

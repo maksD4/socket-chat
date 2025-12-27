@@ -276,20 +276,20 @@ void on_room_request(int reply_socket, char* packet, size_t packet_size){
             send_state_packet(reply_socket, packet, "fail");
         }
         else{
-            send_room_packet_fail(reply_socket, chat_id);
+            send_room_packet_fail(&reply_socket, &chat_id);
         }
         return;
     }
     
     if(state == -1){
-        send_room_packet_fail(reply_socket, chat_id);
+        send_room_packet_fail(&reply_socket, &chat_id);
         return;
     }
 
     char session_key[SESSION_KEY_SIZE + 1];
     if(extract_session(packet, session_key) == -1){
         printf("[%d][FRND] >> SESSION EXTRACTION FAILED!\n", getpid());
-        send_room_packet_fail(reply_socket, chat_id);
+        send_room_packet_fail(&reply_socket, &chat_id);
         return;
     }
 
@@ -381,7 +381,7 @@ void on_message_request(int reply_socket, char* packet, size_t packet_size){
     int chat_id;
     if(extract_third_number(packet, &chat_id)){
         printf("[%d][SMSG] >> CHAT ID EXTRACTION FAILED!\n", getpid());
-        sen_state_packet(reply_socket, packet, "fail");
+        send_state_packet(reply_socket, packet, "fail");
         return;
     }
     

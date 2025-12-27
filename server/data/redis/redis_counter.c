@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <hiredis/hiredis.h>
+#include <lib/hiredis/hiredis.h>
 
 #include "server/data/redis/redis_client.h"
 #include "server/data/redis/redis_counter.h"

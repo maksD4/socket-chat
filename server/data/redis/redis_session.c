@@ -3,7 +3,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
-#include <hiredis/hiredis.h>
+#include <lib/hiredis/hiredis.h>
 
 #include "server/data/redis/redis_client.h"
 #include "lib/constants.h"

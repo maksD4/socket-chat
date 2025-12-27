@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "server/utils/models/user.h"
 
 void free_user(user_t *user){

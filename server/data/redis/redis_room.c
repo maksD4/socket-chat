@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <hiredis/hiredis.h>
+#include <lib/hiredis/hiredis.h>
 
 #include "server/data/mongodb/mongodb_user.h" // temporarily
 #include "server/data/redis/redis_room.h"

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
 
