@@ -7,6 +7,15 @@
 // temp: gcc temp.c -o temp.out
 // client: gcc client/main.c client/modules/*.c -o client.out
 // temp_server: gcc client/temp_server.c -o server.out
+
+// git clone https://github.com/maksD4/socket-chat
+// sudo zypper install docker
+// sudo systemctl enable docker
+// sudo usermod -G docker -a $USER
+// sudo systemctl restart docker
+// sudo docker run --name mongodb -d mongo:latest
+
+
 int main(){
     start_server();
 }
