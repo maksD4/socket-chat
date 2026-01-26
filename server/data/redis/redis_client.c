@@ -10,7 +10,7 @@
 #include "server/data/redis/redis_client.h"
 #include "server/utils/models/user.h"
 
-pid_t redis_pid;
+//static pid_t redis_pid;
 redisContext *c;
 
 /*
@@ -28,14 +28,19 @@ redisContext* redis_get(){
     return c;
 }
 
-int redis_init(){
-    redis_pid = fork();
-    if (redis_pid == 0) {
+pid_t start_redis_server(){
+    pid_t redis_pid = fork();
+    if(redis_pid == 0){
+        printf("[%d] Redis server has started!\n", getpid());
         execlp("redis-server", "redis-server", "--daemonize", "no", NULL);
         perror("execlp");
         exit(1);
     }
+    
+    return redis_pid;
+}
 
+int redis_init(){
     sleep(3);
 
     c = redisConnect("127.0.0.1", 6379);
@@ -95,6 +100,6 @@ void redis_cleanup(){
 
     freeReplyObject(r);
     redisFree(c);
-    kill(redis_pid, SIGTERM);
+    //kill(redis_pid, SIGTERM);
     printf("[%d] Redis has been successfully cleaned up!\n", getpid());
 }

@@ -20,7 +20,7 @@ const static uint8_t LOGIN_PACKET_MIN_SIZE = 4 + 2 + NAME_MIN_SIZE + PASSWORD_MI
 const static uint8_t PACKET_MIN_SIZE = 4 + 1 + SESSION_KEY_SIZE;
 
 int recognize_login_packet(int reply_socket, char* packet, size_t packet_size){
-    if(packet_size <= LOGIN_PACKET_MIN_SIZE){
+    if(packet_size < LOGIN_PACKET_MIN_SIZE){
         return -1;
     }
     uint32_t id = ID4(packet[0], packet[1], packet[2], packet[3]);
@@ -40,8 +40,7 @@ int recognize_login_packet(int reply_socket, char* packet, size_t packet_size){
 }
 
 int recognize_packet(int reply_socket, char* packet, size_t packet_size){
-    // packet_id (4 chars), 2 semicolons, NAME_MIN_SIZE, PASSWORD_MIN_SIZE
-    if(packet_size <= PACKET_MIN_SIZE){
+    if(packet_size < PACKET_MIN_SIZE){
         return -1;
     }
     uint32_t id = ID4(packet[0], packet[1], packet[2], packet[3]);

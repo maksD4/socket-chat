@@ -6,7 +6,6 @@
 #include "client/gui/app.h"
 #include "client/gui/login.h"
 #include "client/modules/app/user_app.h"
-#include "client/handlers/response_handler.h"
 
 // Global widgets for chat area updates
 static GtkWidget *chat_container = NULL;
@@ -14,40 +13,27 @@ static GtkWidget *chat_name_label = NULL;
 static GtkWidget *chat_scroll = NULL;
 static GtkWidget *chat_messages_box = NULL;
 static GtkWidget *message_entry = NULL;
-static int current_room_index = -1;
+static int current_friend_index = -1;
 
 typedef struct {
     GtkWidget *window;
-    int room_index;
+    int friend_index;
 } ChatData;
 
-// Function to display chat with a specific room
-static void show_chat_with_room(int room_index) {
-    if (room_index < 0 || room_index >= user_data.room_amount) {
-        g_print("Invalid room index\n");
+// Function to display chat with a specific friend
+static void show_chat_with_friend(int friend_index) {
+    if (friend_index < 0 || friend_index >= user_data.friend_amount) {
+        g_print("Invalid friend index\n");
         return;
     }
     
-    current_room_index = room_index;
+    current_friend_index = friend_index;
     
-    // Build chat name (all users except current user)
-    char chat_name[512] = "";
-    int first = 1;
+    const char *friend_name = user_data.friends[friend_index];
+    g_print("Opening chat with: %s\n", friend_name);
     
-    for (int j = 0; j < user_data.rooms[room_index].user_amount; j++) {
-        if (strcmp(user_data.rooms[room_index].users[j], user_data.username) != 0) {
-            if (!first) {
-                strcat(chat_name, ", ");
-            }
-            strcat(chat_name, user_data.rooms[room_index].users[j]);
-            first = 0;
-        }
-    }
-    
-    g_print("Opening chat: %s\n", chat_name);
-    
-    // Update chat header with chat name
-    gtk_label_set_text(GTK_LABEL(chat_name_label), chat_name);
+    // Update chat header with friend's name
+    gtk_label_set_text(GTK_LABEL(chat_name_label), friend_name);
     
     // Clear existing messages
     GtkWidget *child = gtk_widget_get_first_child(chat_messages_box);
@@ -57,8 +43,20 @@ static void show_chat_with_room(int room_index) {
         child = next;
     }
     
+    // Find the room for this friend
+    int room_index = -1;
+    for (int i = 0; i < user_data.room_amount; i++) {
+        for (int j = 0; j < user_data.rooms[i].user_amount; j++) {
+            if (strcmp(user_data.rooms[i].users[j], friend_name) == 0) {
+                room_index = i;
+                break;
+            }
+        }
+        if (room_index != -1) break;
+    }
+    
     // Display messages
-    if (user_data.rooms[room_index].msg_amount > 0) {
+    if (room_index != -1 && user_data.rooms[room_index].msg_amount > 0) {
         for (int i = 0; i < user_data.rooms[room_index].msg_amount; i++) {
             msg_data_t *msg = &user_data.rooms[room_index].messages[i];
             
@@ -108,51 +106,61 @@ static void show_chat_with_room(int room_index) {
 }
 
 // Public function to refresh current chat (can be called from outside)
-void refresh_current_chat(void) {
-    if (current_room_index >= 0) {
-        show_chat_with_room(current_room_index);
+void refresh_current_chat() {
+    if (current_friend_index >= 0) {
+        show_chat_with_friend(current_friend_index);
     }
 }
 
-static void on_room_clicked(GtkButton *button, gpointer user_data) {
+static void on_friend_clicked(GtkButton *button, gpointer user_data) {
     ChatData *data = (ChatData *)user_data;
-    show_chat_with_room(data->room_index);
+    show_chat_with_friend(data->friend_index);
+}
+
+static void on_logout_clicked(GtkButton *button, gpointer user_data) {
+    g_print("User %s logged out\n", user_data);
+    
+    GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_INFO,
+                                               GTK_BUTTONS_OK,
+                                               "Logged out successfully!");
+    gtk_window_present(GTK_WINDOW(dialog));
+    g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+    
+    // Here you would typically:
+    // - Clear session data
+    // - Close network connections
+    // - Return to login screen
 }
 
 static void on_add_friend_accept_clicked(GtkButton *button, gpointer user_data){
-    if(is_request_pending(RESPONSE_ADD_FRIEND)){
-        g_print("Friend add request is pending...\n");
-        return;
-    }
-
     GtkWidget **entries = (GtkWidget **)user_data;
     GtkWidget *entry = entries[0];
     GtkWidget *dialog = entries[1];
 
     const char *new_friend = gtk_editable_get_text(GTK_EDITABLE(entry));
-    if (strlen(new_friend) >= NAME_MIN_SIZE && strlen(new_friend) <= NAME_MAX_SIZE) {
+    if (strlen(new_friend) > NAME_MIN_SIZE && strlen(new_friend) < NAME_MAX_SIZE) {
         g_print("Adding friend: %s\n", new_friend);
 
-        if(start_request(RESPONSE_ADD_FRIEND)){
-            g_print("Friend add request started\n");
-        } 
-        else{
-            g_print("Friend add request already in progress\n");
-        }
-    }
-    else{
-        GtkWidget *dialog_err = gtk_message_dialog_new(NULL,
+         GtkWidget *dialog_info = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
-                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_MESSAGE_INFO,
                                                    GTK_BUTTONS_OK,
-                                                   "Invalid username!");
-        gtk_window_present(GTK_WINDOW(dialog_err));
-        g_signal_connect_swapped(dialog_err, "response", G_CALLBACK(gtk_window_destroy), dialog_err);
+                                                   "Friend addition success!");
+        gtk_window_present(GTK_WINDOW(dialog_info));
+        g_signal_connect_swapped(dialog_info, "response", G_CALLBACK(gtk_window_destroy), dialog_info);
+
+
+        // Here you would typically:
+        // - Send friend request to server
+        // - Update user_data.friends
+        // - Refresh friends list
     }
-    //gtk_window_destroy(GTK_WINDOW(dialog));
+    gtk_window_destroy(GTK_WINDOW(dialog));
 }
 
-static void on_add_friend_clicked(GtkButton *button, gpointer user_data){
+static void on_add_friend_clicked(GtkButton *button, gpointer user_data) {
     GtkWidget *dialog = gtk_dialog_new();
     gtk_window_set_title(GTK_WINDOW(dialog), "Add Friend");
     gtk_window_set_default_size(GTK_WINDOW(dialog), 300, 150);
@@ -196,22 +204,9 @@ static void on_add_friend_clicked(GtkButton *button, gpointer user_data){
     gtk_window_present(GTK_WINDOW(dialog));
 }
 
-static void on_logout_clicked(GtkButton *button, gpointer user_data) {
-    if(is_request_pending(RESPONSE_LOGOUT)){
-        g_print("Logout request is pending...\n");
-        return;
-    }
-
-    if(start_request(RESPONSE_LOGOUT)){
-        g_print("Logout request started!\n");
-    }
-    else{
-        g_print("Logout request is already in progress...\n");
-    }
-}
-
 static void on_send_clicked(GtkButton *button, gpointer user_data) {
-    if(current_room_index == -1){
+    if(current_friend_index == -1){
+        g_print("Send failed! There is no chat!\n");
         return;
     }
 
@@ -221,26 +216,16 @@ static void on_send_clicked(GtkButton *button, gpointer user_data) {
     if (!message || strlen(message) == 0) {
         return;
     }
-
-    if(is_request_pending(RESPONSE_SEND_MESSAGE)){
-        g_print("Message request is pending...\n");
-        return;
-    }
     
-    if(start_request(RESPONSE_SEND_MESSAGE)){
-        g_print("Message request created!\n");
-    }
-    else{
-        g_print("Message request is already in progress...\n");
-    }
+    g_print("Sending message: %s\n", message);
     
-    gtk_editable_set_text(GTK_EDITABLE(message_entry), "");
-
     // Here you would typically:
     // - Send message to server
     // - Add message to current room's messages
     // - Refresh the chat display
     // - Clear the input field
+    
+    gtk_editable_set_text(GTK_EDITABLE(message_entry), "");
     
     // Example: refresh chat after sending
     // refresh_current_chat();
@@ -253,58 +238,63 @@ void show_chat_window(GtkApplication *app, GtkWidget *window) {
     }
     
     gtk_window_set_title(GTK_WINDOW(window), "Chat Application");
-    gtk_window_set_default_size(GTK_WINDOW(window), 900, 600);
+    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
     
     // Main container
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     
-    // ========== LEFT SIDEBAR - FRIENDS LIST ==========
-    GtkWidget *friends_sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_size_request(friends_sidebar, 120, -1);
-    gtk_widget_set_hexpand(friends_sidebar, FALSE);
+    // Left sidebar
+    GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_size_request(sidebar, 200, -1);
     
-    // Friends header
-    GtkWidget *friends_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_widget_set_margin_start(friends_header, 10);
-    gtk_widget_set_margin_end(friends_header, 10);
-    gtk_widget_set_margin_top(friends_header, 10);
-    gtk_widget_set_margin_bottom(friends_header, 10);
+    // Sidebar header
+    GtkWidget *sidebar_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_set_margin_start(sidebar_header, 10);
+    gtk_widget_set_margin_end(sidebar_header, 10);
+    gtk_widget_set_margin_top(sidebar_header, 10);
+    gtk_widget_set_margin_bottom(sidebar_header, 10);
     
-    GtkWidget *friends_title = gtk_label_new("Friends");
-    gtk_widget_add_css_class(friends_title, "title-2");
+    GtkWidget *friends_label = gtk_label_new("Friends");
+    gtk_widget_add_css_class(friends_label, "title-2");
     GtkWidget *add_friend_btn = gtk_button_new_with_label("+");
     gtk_widget_set_size_request(add_friend_btn, 30, 30);
     
-    gtk_box_append(GTK_BOX(friends_header), friends_title);
-    gtk_box_append(GTK_BOX(friends_header), add_friend_btn);
-    gtk_widget_set_hexpand(friends_title, TRUE);
-    gtk_widget_set_halign(friends_title, GTK_ALIGN_START);
+    gtk_box_append(GTK_BOX(sidebar_header), friends_label);
+    gtk_box_append(GTK_BOX(sidebar_header), add_friend_btn);
+    gtk_widget_set_hexpand(friends_label, TRUE);
+    gtk_widget_set_halign(friends_label, GTK_ALIGN_START);
     
     g_signal_connect(add_friend_btn, "clicked", G_CALLBACK(on_add_friend_clicked), NULL);
     
-    // Scrollable friends list (text only)
+    // Scrollable friends list
     GtkWidget *friends_scroll = gtk_scrolled_window_new();
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(friends_scroll),
                                    GTK_POLICY_NEVER,
                                    GTK_POLICY_AUTOMATIC);
     gtk_widget_set_vexpand(friends_scroll, TRUE);
     
-    GtkWidget *friends_list_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_widget_set_margin_start(friends_list_box, 10);
-    gtk_widget_set_margin_end(friends_list_box, 10);
+    GtkWidget *friends_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    gtk_widget_set_margin_start(friends_box, 5);
+    gtk_widget_set_margin_end(friends_box, 5);
     
-    // Add friend names as text labels
+    // Add friend buttons
+    static ChatData *chat_data_array = NULL;
+    chat_data_array = g_malloc(sizeof(ChatData) * user_data.friend_amount);
+    
     for (int i = 0; i < user_data.friend_amount; i++) {
-        GtkWidget *friend_label = gtk_label_new(user_data.friends[i]);
-        gtk_widget_set_halign(friend_label, GTK_ALIGN_START);
-        gtk_widget_set_margin_top(friend_label, 3);
-        gtk_widget_set_margin_bottom(friend_label, 3);
-        gtk_box_append(GTK_BOX(friends_list_box), friend_label);
+        GtkWidget *friend_btn = gtk_button_new_with_label(user_data.friends[i]);
+        gtk_widget_set_size_request(friend_btn, -1, 35);
+        
+        chat_data_array[i].window = window;
+        chat_data_array[i].friend_index = i;
+        
+        g_signal_connect(friend_btn, "clicked", G_CALLBACK(on_friend_clicked), &chat_data_array[i]);
+        gtk_box_append(GTK_BOX(friends_box), friend_btn);
     }
     
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(friends_scroll), friends_list_box);
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(friends_scroll), friends_box);
     
-    // Username label at bottom
+    // Username label at bottom of sidebar
     GtkWidget *username_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_widget_set_margin_start(username_box, 10);
     gtk_widget_set_margin_end(username_box, 10);
@@ -316,88 +306,12 @@ void show_chat_window(GtkApplication *app, GtkWidget *window) {
     gtk_widget_set_halign(username_label, GTK_ALIGN_START);
     gtk_box_append(GTK_BOX(username_box), username_label);
     
-    gtk_box_append(GTK_BOX(friends_sidebar), friends_header);
-    gtk_box_append(GTK_BOX(friends_sidebar), friends_scroll);
-    gtk_box_append(GTK_BOX(friends_sidebar), username_box);
+    gtk_box_append(GTK_BOX(sidebar), sidebar_header);
+    gtk_box_append(GTK_BOX(sidebar), friends_scroll);
+    gtk_box_append(GTK_BOX(sidebar), username_box);
     
-    // First separator
-    GtkWidget *separator1 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
-    
-    // ========== MIDDLE SIDEBAR - CHATS LIST ==========
-    GtkWidget *chats_sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_size_request(chats_sidebar, 180, -1);
-    gtk_widget_set_hexpand(chats_sidebar, FALSE);
-    
-    // Chats header
-    GtkWidget *chats_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_widget_set_margin_start(chats_header, 10);
-    gtk_widget_set_margin_end(chats_header, 10);
-    gtk_widget_set_margin_top(chats_header, 10);
-    gtk_widget_set_margin_bottom(chats_header, 10);
-    
-    GtkWidget *chats_title = gtk_label_new("Chats");
-    gtk_widget_add_css_class(chats_title, "title-2");
-    GtkWidget *add_chat_btn = gtk_button_new_with_label("+");
-    gtk_widget_set_size_request(add_chat_btn, 30, 30);
-
-    gtk_box_append(GTK_BOX(chats_header), chats_title);
-    gtk_box_append(GTK_BOX(chats_header), add_chat_btn);
-    gtk_widget_set_hexpand(chats_title, TRUE);
-    gtk_widget_set_halign(chats_title, GTK_ALIGN_START);
-    
-    g_signal_connect(add_chat_btn, "clicked", G_CALLBACK(on_add_friend_clicked), NULL);
-    
-    // Scrollable chats list (buttons)
-    GtkWidget *chats_scroll = gtk_scrolled_window_new();
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(chats_scroll),
-                                   GTK_POLICY_NEVER,
-                                   GTK_POLICY_AUTOMATIC);
-    gtk_widget_set_vexpand(chats_scroll, TRUE);
-    
-    GtkWidget *chats_list_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_widget_set_margin_start(chats_list_box, 5);
-    gtk_widget_set_margin_end(chats_list_box, 5);
-    
-    // Add chat buttons (showing users without current username)
-    static ChatData *chat_data_array = NULL;
-    chat_data_array = g_malloc(sizeof(ChatData) * user_data.room_amount);
-    
-    for (int i = 0; i < user_data.room_amount; i++) {
-        // Build chat name (all users except current user)
-        char chat_name[512] = "";
-        int first = 1;
-        
-        for (int j = 0; j < user_data.rooms[i].user_amount; j++) {
-            if (strcmp(user_data.rooms[i].users[j], user_data.username) != 0) {
-                if (!first) {
-                    strcat(chat_name, ", ");
-                }
-                strcat(chat_name, user_data.rooms[i].users[j]);
-                first = 0;
-            }
-        }
-        
-        GtkWidget *chat_btn = gtk_button_new_with_label(chat_name);
-        gtk_widget_set_size_request(chat_btn, -1, 35);
-        
-        chat_data_array[i].window = window;
-        chat_data_array[i].room_index = i;
-        
-        g_signal_connect(chat_btn, "clicked", G_CALLBACK(on_room_clicked), &chat_data_array[i]);
-        gtk_box_append(GTK_BOX(chats_list_box), chat_btn);
-    }
-    
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(chats_scroll), chats_list_box);
-    
-    gtk_box_append(GTK_BOX(chats_sidebar), chats_header);
-    gtk_box_append(GTK_BOX(chats_sidebar), chats_scroll);
-    
-    // Second separator
-    GtkWidget *separator2 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
-    
-    // ========== RIGHT SIDE - CHAT AREA ==========
+    // Right side - Chat area
     chat_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_size_request(chat_container, 600, -1);
     gtk_widget_set_hexpand(chat_container, TRUE);
     
     // Chat header
@@ -407,7 +321,7 @@ void show_chat_window(GtkApplication *app, GtkWidget *window) {
     gtk_widget_set_margin_top(chat_header, 10);
     gtk_widget_set_margin_bottom(chat_header, 10);
     
-    chat_name_label = gtk_label_new("Select a chat to start messaging");
+    chat_name_label = gtk_label_new("Select a friend to start chatting");
     gtk_widget_add_css_class(chat_name_label, "title-2");
     gtk_widget_set_halign(chat_name_label, GTK_ALIGN_START);
     gtk_widget_set_hexpand(chat_name_label, TRUE);
@@ -451,12 +365,15 @@ void show_chat_window(GtkApplication *app, GtkWidget *window) {
     gtk_box_append(GTK_BOX(chat_container), chat_scroll);
     gtk_box_append(GTK_BOX(chat_container), input_box);
     
+    // Add separator
+    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+    
     // Assemble main layout
-    gtk_box_append(GTK_BOX(main_box), friends_sidebar);
-    gtk_box_append(GTK_BOX(main_box), separator1);
-    gtk_box_append(GTK_BOX(main_box), chats_sidebar);
-    gtk_box_append(GTK_BOX(main_box), separator2);
+    gtk_box_append(GTK_BOX(main_box), sidebar);
+    gtk_box_append(GTK_BOX(main_box), separator);
     gtk_box_append(GTK_BOX(main_box), chat_container);
     
     gtk_window_set_child(GTK_WINDOW(window), main_box);
 }
+
+

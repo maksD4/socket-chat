@@ -217,6 +217,12 @@ void on_data_request(int reply_socket, char* packet, size_t packet_size){
         return;
     }
 
+    if(redis_user_socket_write(id, reply_socket) == -1){
+        printf("[%d][DATA] >> CANNOT SAVE SOCKET IN REDIS!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }    
+
     if(mongodb_to_redis(name) == -1){
         printf("[%d][DATA] >> LOADING %s USER DATA FROM MONGODB TO REDIS FAILED!\n", getpid(), name);
         send_state_packet(reply_socket, packet, "fail");
@@ -227,6 +233,7 @@ void on_data_request(int reply_socket, char* packet, size_t packet_size){
 
     // send frnd
     char* reply_packet = get_friends_packet(session_key);
+    printf("data response: %s\n", reply_packet);
     
     if(reply_packet != NULL){
         send(reply_socket, reply_packet, strlen(reply_packet), 0);

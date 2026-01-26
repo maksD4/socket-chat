@@ -137,7 +137,7 @@ int mongodb_user_read(char *name, user_t *user){
 
     bson_iter_t iter;
 
-    user->name = name;
+    user->name = strdup(name);
 
     if(bson_iter_init_find(&iter, doc, "id") && BSON_ITER_HOLDS_INT32(&iter)) {
         user->id = bson_iter_int32(&iter);
@@ -150,7 +150,7 @@ int mongodb_user_read(char *name, user_t *user){
     if(bson_iter_init_find(&iter, doc, "password") && BSON_ITER_HOLDS_UTF8(&iter)) {
         //uint32_t len;
         //user->password = bson_iter_utf8(&iter, &len);
-        user->password = bson_strdup(bson_iter_utf8(&iter, NULL));
+        user->password = strdup(bson_iter_utf8(&iter, NULL));
         //printf("mongodb_user_read %s passwd: %s\n", user->name, user->password);
     }
     else{

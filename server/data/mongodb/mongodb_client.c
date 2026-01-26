@@ -114,8 +114,8 @@ void mongodb_clear_collection(const char *collection_name){
 }
 
 void mongodb_cleanup(){
-    //mongodb_clear_collection("USER");
-    //mongodb_clear_collection("ROOM");
+    mongodb_clear_collection("USER");
+    mongodb_clear_collection("ROOM");
 
     mongoc_database_destroy(database);
     mongoc_client_destroy(client);
@@ -221,6 +221,7 @@ int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, c
 
 int get_next_id(const char* collection_name){
     if(!collection_name){
+        printf("Collection name emtpy\n");
         return -1;
     }
 
@@ -247,9 +248,21 @@ int get_next_id(const char* collection_name){
         fprintf(stderr, "Failed to get next ID: %s\n", error.message);
     } 
     else{
+        printf("success\n");
         bson_iter_t iter;
-        if(bson_iter_init_find(&iter, reply, "seq") && BSON_ITER_HOLDS_INT32(&iter)){
-            next_id = bson_iter_int32(&iter);
+        bson_iter_t child;
+        
+        // First find the "value" subdocument
+        if(bson_iter_init_find(&iter, reply, "value") && BSON_ITER_HOLDS_DOCUMENT(&iter) &&
+            bson_iter_recurse(&iter, &child) && bson_iter_find(&child, "seq") && 
+            BSON_ITER_HOLDS_INT32(&child))
+        {
+            printf("setting next_id\n");
+            next_id = bson_iter_int32(&child);
+            printf("next_id: %d\n", next_id);
+        } 
+        else{
+            fprintf(stderr, "Could not find 'seq' in reply\n");
         }
     }
 
@@ -258,6 +271,7 @@ int get_next_id(const char* collection_name){
     bson_destroy(update);
     mongoc_collection_destroy(collection);
 
+    printf("returning next_id: %d\n", next_id);
     return next_id;
 }
 

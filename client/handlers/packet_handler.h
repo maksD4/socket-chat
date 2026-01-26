@@ -13,6 +13,7 @@ enum{
     MSG_RDEL = ID4('r','d','e','l'),
     MSG_FADD = ID4('f','a','d','d'),
     MSG_FRMV = ID4('f','r','m','v'),
+    MSG_DATA = ID4('d','a','t','a'),
 
     MSG_FRND = ID4('f','r','n','d'),
     MSG_ROOM = ID4('r','o','o','m'),

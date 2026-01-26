@@ -13,6 +13,9 @@ typedef struct connection
     pthread_t read_thread;
 }connection_t;
 
+extern connection_t connection;
+
+/*
 typedef struct user
 {
     char *name;
@@ -33,9 +36,13 @@ extern struct user user;
 
 void set_name(char* name);
 void set_session(char *session_key);
+*/
 void *read_thread_core(void *arg);
+void disconnect_any_server();
 int send_to_server(char *message);
-int server_connect(char *name, char *session_key, int port);
-void server_disconnect();
+int login_server_connect(int port);
+int main_server_connect(char *name, char *session_key, int port);
 
+int log_in(char* name, char *password);
+int create_account(char *name, char *password);
 #endif

@@ -22,6 +22,7 @@ enum{
     MSG_DATA = ID4('d','a','t','a')
 };
 
+int recognize_login_packet(int reply_socket, char* packet, size_t packet_size);
 int recognize_packet(int reply_socket, char* packet, size_t packet_size);
 
 #endif

@@ -2,6 +2,7 @@
 #define APP_H
 #include <gtk-4.0/gtk/gtk.h>
 
-int run_app(int argc, char **argv);
+void show_chat_window(GtkApplication *app, GtkWidget *window);
+void refresh_current_chat();
 
 #endif

@@ -7,170 +7,102 @@
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
 #include <pthread.h>
-#include "modules/auth.h"
-#include "../lib/constants.h"
+#include "lib/constants.h"
+#include "gui/app.h"
+#include "gui/login.h"
+#include "modules/app/user_app.h"
+#include "client/handlers/response_handler.h"
 
-int strict_string(char *str, size_t len){
-    for(int i = 0; i < len; i++){
-        int c = str[i];
-        if(c < 48 || (c > 57 && c < 65) || (c > 90 && c < 97) || c > 122){
-            return -1;
-        }
-    }
-    return 0;
+GtkApplication *global_app = NULL;
+GtkWidget *global_window = NULL;
+
+static void init_sample_data(void) {
+    // Set username and session
+    set_username("john_doe");
+    set_session("0123456789abcde");
+    
+    // Set friends
+    char* friends[] = {"Alice", "Bob", "Charlie"};
+    set_friend_data(3, friends);
+    
+    // Add room for Alice
+    char* room1_users[] = {"john_doe", "Alice"};
+    add_room_data(1, 2, 3, room1_users);
+    
+    // Add messages for Alice's room
+    msg_data_t alice_messages[3];
+    alice_messages[0] = create_msg_data(1, "Alice", "Hey! How are you?");
+    alice_messages[1] = create_msg_data(2, "john_doe", "I'm good! Thanks for asking.");
+    alice_messages[2] = create_msg_data(3, "Alice", "Want to grab lunch later?");
+    add_messages_data(1, 3, alice_messages);
+    
+    // Add room for Bob
+    char* room2_users[] = {"john_doe", "Bob"};
+    add_room_data(2, 2, 2, room2_users);
+    
+    // Add messages for Bob's room
+    msg_data_t bob_messages[2];
+    bob_messages[0] = create_msg_data(1, "john_doe", "Did you finish the project?");
+    bob_messages[1] = create_msg_data(2, "Bob", "Yes, just submitted it!");
+    add_messages_data(2, 2, bob_messages);
+    
+    // Add room for Charlie (empty)
+    char* room3_users[] = {"john_doe", "Charlie", "Alice", "Bob"};
+    add_room_data(3, 4, 20, room3_users);
+    
+    msg_data_t room3_messages[10];
+    room3_messages[0] = create_msg_data(1, "john_doe", "Hello");
+    room3_messages[1] = create_msg_data(2, "Charlie", "Hello");
+    room3_messages[2] = create_msg_data(3, "Alice", "Hello");
+    room3_messages[3] = create_msg_data(4, "Bob", "Hello");
+    room3_messages[4] = create_msg_data(5, "john_doe", "adsdadadssa");
+    room3_messages[5] = create_msg_data(6, "Bob", "p1i23pi12j3msa,mndlajsd");
+    room3_messages[6] = create_msg_data(7, "Charlie", "192830912uakjdksajda");
+    room3_messages[7] = create_msg_data(8, "Alice", "???");
+    room3_messages[8] = create_msg_data(9, "Bob", "?");
+    room3_messages[9] = create_msg_data(10, "Charlie", "Hello");
+    add_messages_data(3, 10, room3_messages);
+    add_messages_data(3, 10, room3_messages);
+
+
+    // Print data to verify
+    print_user_data();
 }
 
-int main(){ 
-    int msg_scanf_size;
+static void activate(GtkApplication *app, gpointer user_data_ptr){
+    global_window = gtk_application_window_new(app);
+    
+    show_login_window(app, global_window);
+    
+    gtk_window_present(GTK_WINDOW(global_window));
+}
 
-    char buffer[300];
-    for(;;){
-        printf("Enter choice(create or login or exit): ");
-        scanf("%s", buffer);
-
-        if(!strcmp("create", buffer)){
-            memset(&buffer, 0, sizeof(buffer));
-            char *name;
-            char *password;
-            for(;;){
-                printf("Type username: ");
-                scanf("%s", buffer);
-                size_t len = strlen(buffer);
-                if(len > NAME_MAX_SIZE || len < NAME_MIN_SIZE){
-                    printf("Your username must have between 3 and 20 characters. Try again!\n");
-                }
-                else{
-                    name = malloc(strlen(buffer) + 1);
-                    strcpy(name, buffer);
-                    if(strict_string(name, strlen(name))){
-                        printf("Your username has illegal characters. Try again!\n");
-                        free(name);
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            memset(&buffer, 0, sizeof(buffer));
-            
-            for(;;){
-                printf("Type password: ");
-                scanf("%s", buffer);
-                size_t len = strlen(buffer);
-
-                if(len > PASSWORD_MAX_SIZE || len < PASSWORD_MIN_SIZE){
-                    printf("Your password must have between 3 and 32 characters. Try again!\n");
-                }
-                else{
-                    password = malloc(strlen(buffer) + 1);
-                    strcpy(password, buffer);
-                    if(strict_string(password, strlen(password))){
-                        printf("Your username has illegal characters. Try again!\n");
-                        free(password);
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-            printf("create_account(%s, %s)\n", name, password);
-            
-            create_account(name, password);
-
-            free(name);
-            free(password);
-
-            break;
-        }
-
-        if(!strcmp("login", buffer)){
-            memset(&buffer, 0, sizeof(buffer));
-            char *name;
-            char *password;
-            for(;;){
-                printf("Type username: ");
-                scanf("%s", buffer);
-                size_t len = strlen(buffer);
-                if(len > 20 || len < 3){
-                    printf("Your username must have between 3 and 20 characters. Try again!\n");
-                }
-                else{
-                    name = malloc(strlen(buffer) + 1);
-                    strcpy(name, buffer);
-                    if(strict_string(name, strlen(name))){
-                        printf("Your username has illegal characters. Try again!\n");
-                        free(name);
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            memset(&buffer, 0, sizeof(buffer));
-            
-            for(;;){
-                printf("Type password: ");
-                scanf("%s", buffer);
-                size_t len = strlen(buffer);
-
-                if(len > 32 || len < 3){
-                    printf("Your password must have between 3 and 32 characters. Try again!\n");
-                }
-                else{
-                    password = malloc(strlen(buffer) + 1);
-                    strcpy(password, buffer);
-                    if(strict_string(password, strlen(password))){
-                        printf("Your username has illegal characters. Try again!\n");
-                        free(password);
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-            printf("log_in(%s, %s)\n", name, password);
-            log_in(name, password);
-
-            free(name);
-            free(password);
-
-            break;
-        }
-
-        if(!strcmp("exit", buffer)){
-            printf("Exit!\n");
-            break;
-        }
-        else{
-            printf("Invalid command: %s\n", buffer);
-        }
-        
+void switch_to_chat_window(){
+    if(global_app && global_window){
+        show_chat_window(global_app, global_window);
     }
+}
+
+int main(int argc, char **argv){
+    init_response_handlers();
+    
     /*
-    login_connect(5033);
-
-    printf("socket: %d\n", get_login_socket());
-
-    char message[1000];
-
-    for(;;){
-
-        msg_scanf_size=scanf("%s",message);
-        char *s;
-        s=strstr(message,"exit");
-        if(s != NULL)
-        {
-            login_disconnect();
-            printf("Exiting\n");
-            break;
-
-        }
-
-        send_message(message);
-        memset(&message, 0, sizeof (message));
-    }
+    init_sample_data();
+    printf("freeing\n");
+    free_user_data();
+    print_user_data();
     */
-  return 0;
+
+    int status;
+    
+    //init_sample_data();
+    
+    global_app = gtk_application_new("com.example.chatapp", G_APPLICATION_DEFAULT_FLAGS);
+    g_signal_connect(global_app, "activate", G_CALLBACK(activate), NULL);
+    status = g_application_run(G_APPLICATION(global_app), argc, argv);
+    g_object_unref(global_app);
+    
+    return status;
+    //run_app(argc, argv);
+    //return 0;
 }

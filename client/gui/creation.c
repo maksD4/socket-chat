@@ -3,6 +3,10 @@
 #include "client/gui/creation.h"
 #include "client/gui/login.h"
 
+#include "lib/constants.h"
+#include "client/handlers/response_handler.h"
+#include "client/modules/client.h"
+
 typedef struct {
     GtkApplication *app;
     GtkWidget *window;
@@ -15,24 +19,33 @@ static void on_create_account_button(GtkButton *button, gpointer user_data) {
     
     const char *username = gtk_editable_get_text(GTK_EDITABLE(username_entry));
     const char *password = gtk_editable_get_text(GTK_EDITABLE(password_entry));
-    
-    if (g_strcmp0(username, "") == 0 || g_strcmp0(password, "") == 0) {
+
+    int username_len = strlen(username);
+    int password_len = strlen(password);
+
+    if(username_len < NAME_MIN_SIZE || username_len > NAME_MAX_SIZE || password_len < PASSWORD_MIN_SIZE || password_len > PASSWORD_MAX_SIZE){
         GtkWidget *dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,
-                                                   "Username and password cannot be empty!");
+                                                   "Username or password length is invalid!");
         gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
-    } else {
-        g_print("Account created for user: %s\n", username);
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                   GTK_DIALOG_MODAL,
-                                                   GTK_MESSAGE_INFO,
-                                                   GTK_BUTTONS_OK,
-                                                   "Account created successfully!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
+        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+        return;
+    }
+
+    g_print("Starting account creation sequence...\n");
+    if(start_request(RESPONSE_REGISTER)){
+        // Log in sequence
+        if(create_account(username, password) == -1){
+            signal_response(RESPONSE_REGISTER, FALSE);
+        }        
+        else{
+            g_print("Account creation request started\n");
+        }        
+    } 
+    else{
+        g_print("Account creation request already in progress\n");
     }
 }
 

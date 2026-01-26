@@ -6,10 +6,10 @@ static const uint16_t MAIN_PORT = 10102;
 static const uint16_t LOGIN_PORT = 5033;
 
 static const int ID_SIZE = 4;
-static const int SESSION_KEY_SIZE = 16;
+#define SESSION_KEY_SIZE 16
 
 static const int NAME_MIN_SIZE = 3;
-static const int NAME_MAX_SIZE = 20;
+#define NAME_MAX_SIZE 20
 
 static const int PASSWORD_MIN_SIZE = 3;
 static const int PASSWORD_MAX_SIZE = 32;
@@ -17,7 +17,7 @@ static const int PASSWORD_MAX_SIZE = 32;
 static const int FRIENDS_MAX = 48;
 static const int FRIENDS_NUM_SIZE = 2; // Common logarithm of FRIENDS_MAX
 
-static const int ROOM_MAX = 64;
+#define ROOM_MAX 32
 static const int ROOM_USERS_MAX = 16;
 static const int ROOM_NUM_SIZE = 2; // Common logarithm of ROOM_MAX
 
@@ -28,5 +28,7 @@ static const int PACKET_TTL = 60; // Change expiry time to one digit number
 #define PACKET_MAX_SIZE 1024
 
 static const char DB_NAME[14] = "chat_database";
+
+static const int RESPONSE_TTL = 6;
 
 #endif

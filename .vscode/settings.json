@@ -5,5 +5,12 @@
         "signal.h": "c",
         "types.h": "c",
         "user.h": "c"
+    },
+
+    "terminal.integrated.env.linux": {
+        "LD_LIBRARY_PATH": "",
+        "DISPLAY": "${env:DISPLAY}",
+        "WAYLAND_DISPLAY": "${env:WAYLAND_DISPLAY}",
+        "XDG_RUNTIME_DIR": "${env:XDG_RUNTIME_DIR}"
     }
 }

@@ -178,17 +178,14 @@ void cancel_request(ResponseType type) {
 
 // Login dialog callback
 void show_login_dialog(ResponseData *response_data){
+    GtkWidget *dialog;
+
     if(response_data->timeout_occurred) {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,
                                                    "Login timeout! Server did not respond.");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
-        
-        // Exit after showing dialog
-        g_timeout_add_seconds(2, (GSourceFunc)exit, GINT_TO_POINTER(EXIT_FAILURE));
     } 
     else if(response_data->response_received && response_data->success) {
         GtkWidget *dialog = gtk_message_dialog_new(NULL,
@@ -196,8 +193,6 @@ void show_login_dialog(ResponseData *response_data){
                                                    GTK_MESSAGE_INFO,
                                                    GTK_BUTTONS_OK,
                                                    "Login Successful!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     } 
     else{
         GtkWidget *dialog = gtk_message_dialog_new(NULL,
@@ -205,10 +200,10 @@ void show_login_dialog(ResponseData *response_data){
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,
                                                    "Invalid username or password!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     }
     
+    gtk_window_present(GTK_WINDOW(dialog));
+    g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     cleanup_response_data(response_data);
 }
 
@@ -265,7 +260,7 @@ void show_logout_dialog(ResponseData *data){
                                                    GTK_BUTTONS_OK,
                                                    "Server timeout!");
         gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     }
     else if(data->response_received && data->success){
         GtkWidget *dialog = gtk_message_dialog_new(NULL,
@@ -274,7 +269,7 @@ void show_logout_dialog(ResponseData *data){
                                                    GTK_BUTTONS_OK,
                                                    "You've successfully logged in!");
         gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
 
         g_print("Logged out successfully\n");
 
@@ -287,7 +282,7 @@ void show_logout_dialog(ResponseData *data){
                                                    GTK_BUTTONS_OK,
                                                    "You failed to log in!");
         gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     }
 
     cleanup_response_data(data);

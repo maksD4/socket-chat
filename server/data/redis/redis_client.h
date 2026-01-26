@@ -4,6 +4,7 @@
 #include <lib/hiredis/hiredis.h>
 #pragma once
 
+pid_t start_redis_server();
 int redis_init();
 void redis_cleanup();
 redisContext* redis_get();

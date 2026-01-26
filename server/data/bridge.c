@@ -19,7 +19,7 @@ int mongodb_to_redis(char* name){
     user_t user;
     if(mongodb_user_read(name, &user)){
         printf("[%d][DB] MONGODB USER READ FAIL!\n", getpid());
-        free_user(&user);
+        //free_user(&user);
         return -1;
     }
 

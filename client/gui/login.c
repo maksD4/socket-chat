@@ -3,138 +3,57 @@
 #include "client/gui/login.h"
 #include "client/gui/creation.h"
 
+#include "client/modules/packets.h"
+#include "client/handlers/response_handler.h"
+#include "lib/constants.h"
+#include "client/modules/client.h"
+
 typedef struct {
     GtkApplication *app;
     GtkWidget *window;
 } AppData;
 
-typedef struct {
-    GMutex mutex;
-    GCond cond;
-    gboolean response_received;
-    gboolean timeout_occurred;
-    gboolean success;
-} SignalData;
-
-static gboolean on_timeout(gpointer user_data) {
-    SignalData *signal_data = (SignalData *) user_data;
-
-    g_mutex_lock(&signal_data->mutex);
-
-    if(!signal_data->response_received){
-        signal_data->timeout_occurred = TRUE;
-        g_print("Timeout occured - no response within 5 seconds!\n");
-
-        // Send signal
-        g_cond_signal(&signal_data->cond);
-    }
-    
-    g_mutex_unlock(&signal_data->mutex);
-    
-    return G_SOURCE_REMOVE;
-}
-
-static void simulate_server_response(gpointer user_data) {
-    SignalData *signal_data = (SignalData *)user_data;
-    
-    // Simulate a delay (you can adjust this to test timeout)
-    g_usleep(2000000); // 2 second delay - change to 6000000 (6 seconds) to test timeout
-    
-    g_mutex_lock(&signal_data->mutex);
-
-    if(!signal_data->timeout_occurred){
-        signal_data->response_received = TRUE;
-        signal_data->success = TRUE;
-        g_print("Success signal!");
-
-        // Send signal
-        g_cond_signal(&signal_data->cond);
+static void on_login_button(GtkButton *button, gpointer user_data){
+    if(is_request_pending(RESPONSE_LOGIN)){
+        g_print("Login request is pending...\n");
+        return;
     }
 
-    g_mutex_unlock(&signal_data->mutex);
-
-    return;
-}
-
-static gboolean show_result_dialog(gpointer user_data) {
-    SignalData *signal_data = (SignalData *)user_data;
-    
-    if (signal_data->timeout_occurred) {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                   GTK_DIALOG_MODAL,
-                                                   GTK_MESSAGE_ERROR,
-                                                   GTK_BUTTONS_OK,
-                                                   "Login timeout! Server did not respond.");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
-        
-        // Exit after showing dialog
-        g_timeout_add_seconds(2, (GSourceFunc)exit, GINT_TO_POINTER(EXIT_FAILURE));
-    } else if (signal_data->response_received && signal_data->success) {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                   GTK_DIALOG_MODAL,
-                                                   GTK_MESSAGE_INFO,
-                                                   GTK_BUTTONS_OK,
-                                                   "Login Successful!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
-    } else {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                   GTK_DIALOG_MODAL,
-                                                   GTK_MESSAGE_ERROR,
-                                                   GTK_BUTTONS_OK,
-                                                   "Invalid username or password!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
-    }
-    
-    return G_SOURCE_REMOVE;
-}
-
-static void on_login_button(GtkButton *button, gpointer user_data) {
     GtkWidget **entries = (GtkWidget **)user_data;
     GtkWidget *username_entry = entries[0];
     GtkWidget *password_entry = entries[1];
     
     const char *username = gtk_editable_get_text(GTK_EDITABLE(username_entry));
     const char *password = gtk_editable_get_text(GTK_EDITABLE(password_entry));
-    
-    static TimeoutData timeout_data;
-    timeout_data.response_received = FALSE;
 
-    // Set 5 second timeout
-    timeout_data.timeout_id = g_timeout_add_seconds(5, on_timeout, &timeout_data);
+    int username_len = strlen(username);
+    int password_len = strlen(password);
 
-    // Simulate server response in a separate thread
-    g_thread_new("auth_thread", (GThreadFunc)simulate_server_response, &timeout_data);
-
-
-    // Wait for signal
-
-    
-    // Signal was sent    
-    if (timeout_data.response_received) {
-        // Check credentials after receiving response
-        if (g_strcmp0(username, "admin") == 0 && g_strcmp0(password, "password") == 0) {
-            g_print("Login successful!\n");
-            GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                       GTK_DIALOG_MODAL,
-                                                       GTK_MESSAGE_INFO,
-                                                       GTK_BUTTONS_OK,
-                                                       "Login Successful!");
-            gtk_window_present(GTK_WINDOW(dialog));
-            g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
-        } else {
-            g_print("Login failed!\n");
-            GtkWidget *dialog = gtk_message_dialog_new(NULL,
-                                                       GTK_DIALOG_MODAL,
-                                                       GTK_MESSAGE_ERROR,
-                                                       GTK_BUTTONS_OK,
-                                                       "Invalid username or password!");
-            gtk_window_present(GTK_WINDOW(dialog));
-            g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
-        }
+    if(username_len < NAME_MIN_SIZE || username_len > NAME_MAX_SIZE || password_len < PASSWORD_MIN_SIZE || password_len > PASSWORD_MAX_SIZE){
+        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_OK,
+                                                   "Username or password length is invalid!");
+        gtk_window_present(GTK_WINDOW(dialog));
+        g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
+        return;
     }
+
+    g_print("Starting login sequence...\n");
+    if(start_request(RESPONSE_LOGIN)){
+        // Log in sequence
+        if(log_in(username, password) == -1){
+            signal_response(RESPONSE_LOGIN, FALSE);
+        }
+        else{
+            g_print("Login request started\n");
+        }
+    } 
+    else{
+        g_print("Login request already in progress\n");
+    }
+    
 }
 
 static void on_create_account_button(GtkButton *button, gpointer user_data) {

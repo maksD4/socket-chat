@@ -12,6 +12,9 @@
 
 #include "server/handlers/packet_handler.h"
 #include "server/modules/packets.h"
+#include "server/modules/server.h"
+#include "server/data/redis/redis_client.h"
+#include "server/data/mongodb/mongodb_client.h"
 #include "lib/constants.h"
 
 // function in separate fork that waits for login connection and data then proceed
@@ -27,12 +30,12 @@
 uint8_t packet_buffer[PACKET_MAX_SIZE + 1];
 
 void * login_thread(void *arg){
-    printf("new thread \n");
+    printf("New user connected to login thread!\n");
     int newSocket = *((int *)arg);
     ssize_t n;
     
     n=recv(newSocket, packet_buffer, PACKET_MAX_SIZE, 0);
-    printf("%s\n", packet_buffer);
+    printf("Login packet received!\n");
 
     // packet_id (4 chars)
     if(n <= 4 || n > PACKET_MAX_SIZE){
@@ -50,9 +53,9 @@ void * login_thread(void *arg){
     memcpy(packet, packet_buffer, (size_t) n);
     packet[n] = '\0';
 
-    printf("msg_again: %s, size: %d, sizeof: %d\n", packet, (int)strlen(packet), (int)sizeof(packet));
+    printf("[Login thread] Received packet: %s (len: %d, sizeof: %d)\n", packet_buffer, (int)strlen(packet), (int)sizeof(packet));
 
-    if(recognize_packet(newSocket, packet, (size_t)n) == -1){
+    if(recognize_login_packet(newSocket, packet, (size_t)n) == -1){
        send_state_packet(newSocket, packet, "fail");
     }
     
@@ -62,14 +65,72 @@ void * login_thread(void *arg){
     pthread_exit(NULL);
 }
    
+void login(){
+    redis_init();
+
+    if(!mongodb_init()){
+        printf("[%d] Mongodb has successfully set up!\n", getpid());
+    }
+
+    // login thread
+    int loginSocket, newSocket;
+    struct sockaddr_in serverAddr;
+    struct sockaddr_storage serverStorage;
+    socklen_t addr_size;
+
+    //Create the socket. 
+    loginSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+    // Configure settings of the server address struct
+    // Address family = Internet 
+    serverAddr.sin_family = AF_INET;
+
+    //Set port number, using htons function to use proper byte order 
+    serverAddr.sin_port = htons(LOGIN_PORT);
+
+    //Set IP address to localhost 
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+    //Set all bits of the padding field to 0 
+    memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+
+    //Bind the address struct to the socket 
+    bind(loginSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+
+    //Listen on the socket
+    if(listen(loginSocket,50)==0){
+        printf("[%d] Listening on login port...\n", getpid());
+    }
+    else{
+        printf("Error\n");
+    }
+
+    pthread_t thread_id;
+
+    while(1){
+        //Accept call creates a new socket for the incoming connection
+        addr_size = sizeof serverStorage;
+        newSocket = accept(loginSocket, (struct sockaddr *) &serverStorage, &addr_size);
+
+        if(pthread_create(&thread_id, NULL, login_thread, &newSocket) != 0){
+            printf("Failed to create thread\n");
+        }
+
+        pthread_detach(thread_id);
+        //pthread_join(thread_id,NULL);
+    }
+    
+}
+
 pid_t create_login_process(){
     int pid = fork();
     if(pid < 0){
         perror("Login process error!");
     }
     if(pid == 0){
-        /*
-        int tfd = open("/dev/pts/2", O_WRONLY);
+        
+        int tfd = open("/dev/pts/1", O_WRONLY);
         if (tfd < 0) {
             perror("open pts");
             exit(1);
@@ -82,57 +143,11 @@ pid_t create_login_process(){
         }
 
         close(tfd);
-        */
-        printf("Log in listening pid: %d\n", getpid());
-
-        // login thread
-        int loginSocket, newSocket;
-        struct sockaddr_in serverAddr;
-        struct sockaddr_storage serverStorage;
-        socklen_t addr_size;
-
-        //Create the socket. 
-        loginSocket = socket(PF_INET, SOCK_STREAM, 0);
-
-        // Configure settings of the server address struct
-        // Address family = Internet 
-        serverAddr.sin_family = AF_INET;
-
-        //Set port number, using htons function to use proper byte order 
-        serverAddr.sin_port = htons(LOGIN_PORT);
-
-        //Set IP address to localhost 
-        serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-
-        //Set all bits of the padding field to 0 
-        memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-
-        //Bind the address struct to the socket 
-        bind(loginSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
-
-        //Listen on the socket
-        if(listen(loginSocket,50)==0)
-            printf("Listening on login port...\n");
-        else
-            printf("Error\n");
-            pthread_t thread_id;
-
-            while(1)
-            {
-                //Accept call creates a new socket for the incoming connection
-                addr_size = sizeof serverStorage;
-                newSocket = accept(loginSocket, (struct sockaddr *) &serverStorage, &addr_size);
-
-                if( pthread_create(&thread_id, NULL, login_thread, &newSocket) != 0 ){
-                    printf("Failed to create thread\n");
-                }
-
-                pthread_detach(thread_id);
-                //pthread_join(thread_id,NULL);
-            }
         
 
+        signal(10, signal_kill);
+        login();
+        printf("[%d] Login process has been created!\n", getpid());
     }
     else{
         return pid;

@@ -5,5 +5,7 @@
 *.rdb
 
 temp.c
+temp_server.c
+*.sh
 
 *.o
