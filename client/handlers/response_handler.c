@@ -73,7 +73,7 @@ static gboolean show_response_dialog(gpointer user_data){
 }
 
 static gpointer response_wait_thread(gpointer user_data){
-    ResponseData *response_data = (ResponseData *) user_data;
+    ResponseData *response_data = (ResponseData *) user_data;  // ← Use directly
     gint64 end_time;
     
     g_mutex_lock(&response_data->mutex);
@@ -86,7 +86,7 @@ static gpointer response_wait_thread(gpointer user_data){
             // Timeout occurred
             if(!response_data->response_received) {
                 response_data->timeout_occurred = TRUE;
-                g_print("Requset timed out for type %d!\n", response_data->type);
+                g_print("Request timed out for type %d!\n", response_data->type);
             }
             break;
         }
@@ -147,7 +147,9 @@ void signal_response(ResponseType type, gboolean success){
     g_cond_signal(&response_data->cond);
     g_mutex_unlock(&response_data->mutex);
 
-    g_print("Signaled response for type %d: %s\n", type, success ? "success" : "failure");
+    //g_print("Signaled response for type %d: %s\n", type, success ? "success" : "failure");
+
+    //g_print("received: %d\ntimeout: %d\nsuccess: %d\n", response_data->response_received, response_data->timeout_occurred, response_data->success);
 }
 
 gboolean is_request_pending(ResponseType type) {
@@ -188,14 +190,14 @@ void show_login_dialog(ResponseData *response_data){
                                                    "Login timeout! Server did not respond.");
     } 
     else if(response_data->response_received && response_data->success) {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_INFO,
                                                    GTK_BUTTONS_OK,
                                                    "Login Successful!");
     } 
     else{
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,

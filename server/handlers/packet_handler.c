@@ -50,7 +50,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
             on_message_request(reply_socket, packet, packet_size);
             break;
         case MSG_FADD:
-            
+            on_friend_add_request(reply_socket, packet, packet_size);
             break;
         case MSG_FRMV:
             

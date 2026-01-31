@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <lib/hiredis/hiredis.h>
+#include <pthread.h>
 
 #include "server/data/redis/redis_user.h"
 #include "server/data/redis/redis_session.h"
@@ -10,6 +11,85 @@
 #include "server/data/mongodb/mongodb_client.h"
 #include "server/data/mongodb/mongodb_user.h"
 #include "server/utils/models/user.h"
+
+static pthread_mutex_t friend_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int redis_check_friend_invite(int id1, int id2){
+    redisContext *c = redis_get();
+
+    if(c == NULL || c->err){
+        return -1;
+    }
+
+    redisReply *r = redisCommand(c, "LPOS user:%d:friend_invite %d", id2, id1);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Friend invite check failed!\n", getpid());
+        return -1;
+    }
+    
+    if(r->type == REDIS_REPLY_NIL){
+        freeReplyObject(r);
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}
+
+int redis_add_friend_invite(int id1, int id2){
+    redisContext *c = redis_get();
+
+    if(c == NULL || c->err){
+        return -1;
+    }
+
+    redisReply *r = redisCommand(c, "RPUSH user:%d:friend_invite %d", id2, id1);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Adding friend to queue failed!\n", getpid());
+        return -1;
+    }
+    freeReplyObject(r);
+    
+    // r = redisCommand(c, "RPUSH user:%d:friend_invite %d", id1, id2);
+
+    // if(r == NULL){
+    //     printf("[%d][REDIS] >> Adding friend to queue failed!\n", getpid());
+    //     return -1;
+    // }
+    // freeReplyObject(r);
+
+    printf("[REDIS] >> %d have invited %d\n", id1, id2);
+
+    return 0;
+}
+
+int redis_remove_friend_invite(int id1, int id2){
+    redisContext *c = redis_get();
+
+    if(c == NULL || c->err){
+        return -1;
+    }
+
+    redisReply *r = redisCommand(c, "LREM user:%d:friend_invite 0 %d", id2, id1);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Removing friend from queue failed!\n", getpid());
+        return -1;
+    }
+    freeReplyObject(r);
+    
+    // r = redisCommand(c, "LREM user:%d:friend_invite 0 %d", id1, id2);
+
+    // if(r == NULL){
+    //     printf("[%d][REDIS] >> Removing friend from queue failed!\n", getpid());
+    //     return -1;
+    // }
+
+    // freeReplyObject(r);
+    return 0;
+}
 
 // Save id, name, password, friends_num, chats_num HSET, but
 // the friends and chats array save with RPUSH
@@ -131,6 +211,26 @@ int redis_user_get_name(int id, char **name){
     return 0;
 }
 
+int redis_add_friend(int id1, int id2){
+    redisContext *c = redis_get();
+
+    // redisCommand(c, "RPUSH user:%d:friends %s", user.id, mongodb_user_get_name(user.friends[i]));
+    char *friend_name = mongodb_user_get_name(id2);
+    redisReply *r = redisCommand(c, "RPUSH user:%d:friends %s", id1, friend_name);
+    free(friend_name);
+    freeReplyObject(r);
+
+    r = redisCommand(c, "HINCRBY user:%d friends_num 1", id1);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Incrementing friends_num failed!\n", getpid());
+        return -1;
+    }
+    freeReplyObject(r);
+
+    return 0;
+}
+
 int redis_user_socket_write(int id, int socket){
     redisContext *c = redis_get();
     redisReply *r = redisCommand(c, "HSET user:%d socket %d", id, socket);
@@ -164,6 +264,56 @@ int redis_user_socket_read(int id){
     return socket;
 }
 
+int redis_user_cleanup(int id){
+    redisContext *c = redis_get();
+
+    if(c == NULL || c->err){
+        printf("[%d][REDIS] >> Cleanup failed!\n", getpid());
+        return -1;
+    }
+
+    redisReply *r = NULL;
+    int errors = 0;
+
+    // Delete user main hash (name, password, friends_num, chats_num, socket)
+    r = redisCommand(c, "DEL user:%d", id);
+    if(r == NULL){
+        printf("[%d][REDIS] >> Failed to delete user:%d hash\n", getpid(), id);
+        errors++;
+    } 
+    else{
+        freeReplyObject(r);
+    }
+
+    // Delete friends
+    r = redisCommand(c, "DEL user:%d:friends", id);
+    if(r == NULL){
+        printf("[%d][REDIS] >> Failed to delete user:%d:friends\n", getpid(), id);
+        errors++;
+    } 
+    else{
+        freeReplyObject(r);
+    }
+
+    // Delete chats
+    r = redisCommand(c, "DEL user:%d:chats", id);
+    if(r == NULL){
+        printf("[%d][REDIS] >> Failed to delete user:%d:chats\n", getpid(), id);
+        errors++;
+    } 
+    else{
+        freeReplyObject(r);
+    }
+
+    if(errors == 0){
+        printf("[%d][REDIS] >> User %d cleaned up successfully\n", getpid(), id);
+        return 0;
+    } else {
+        printf("[%d][REDIS] >> User %d cleanup completed with %d errors\n", getpid(), id, errors);
+        return -1;
+    }
+}
+
 int redis_user_online(int id){
     redisContext *c = redis_get();
     redisReply *r = redisCommand(c, "SADD online %d", id);
@@ -172,8 +322,8 @@ int redis_user_online(int id){
         printf("[%d][REDIS] >> SETTING USER ONLINE FAILED!\n", getpid());
         return -1;
     }
-
     freeReplyObject(r);
+
     return 0;
 }
 
@@ -185,8 +335,13 @@ int redis_user_offline(int id){
         printf("[%d][REDIS] >> SETTING USER OFFLINE FAILED!\n", getpid());
         return -1;
     }
-
     freeReplyObject(r);
+    
+    if(redis_user_cleanup(id) == -1){
+        printf("[%d][BRIDGE] >> REDIS USER CLEANUP FAILED!\n", getpid());
+        return -1;
+    }
+    
     return 0;
 }
 
@@ -204,3 +359,4 @@ int redis_is_user_online(int id){
 
     return exist == -1 ? -1 : exist - 1;
 }
+

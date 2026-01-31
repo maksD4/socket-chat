@@ -72,32 +72,33 @@ int mongodb_to_redis(char* name){
 int redis_to_mongodb(char *session){
     user_t user;
     if(redis_user_read(session, &user)){
-        printf("[%d][REDIS] >> USER READ ERROR WHILE TRANSFERRING FROM REDIS TO DB!\n", getpid());
+        printf("[%d][BRIDGE] >> USER READ ERROR WHILE TRANSFERRING FROM REDIS TO DB!\n", getpid());
         return -1;
     }
 
     if(mongodb_user_write(user)){
-        printf("[%d][DB] >> USER WRITE ERROR WHILE TRANSFERRING FROM REDIS TO DB\n", getpid());
+        printf("[%d][BRIDGE] >> USER WRITE ERROR WHILE TRANSFERRING FROM REDIS TO DB\n", getpid());
         free_user(&user);
         return -1;
     }
     
+    // redis_user_offline also cleans up user data in redis
     if(redis_user_offline(user.id)){
-        printf("[%d][REDIS] >> USER OFFLINE ERROR!\n", getpid());
+        printf("[%d][BRIDGE] >> USER OFFLINE ERROR!\n", getpid());
         free_user(&user);
         return -1;
     }
 
     for(int i = 0; i < user.chats_num; i++){
         if(redis_room_exist(user.chats[i])){
-            printf("[%d][REDIS] >> ROOM WITH %d ID DOESNT EXIST!\n", getpid(), user.chats[i]);
+            printf("[%d][BRIDGE] >> ROOM WITH %d ID DOESNT EXIST!\n", getpid(), user.chats[i]);
             free_user(&user);
             return -1;
         }
 
         room_t room;
         if(redis_room_read(user.chats[i], &room)){
-            printf("[%d][REDIS] >> ROOM READ FAILED!\n", getpid());
+            printf("[%d][BRIDGE] >> ROOM READ FAILED!\n", getpid());
             free_user(&user);
             free_room(&room);
             return -1;
@@ -110,7 +111,10 @@ int redis_to_mongodb(char *session){
         }
         
         if(mongodb_room_write(room)){
-            printf("[%d][DB] >> ROOM WRITE FAILED!\n", getpid());
+            printf("[%d][BRIDGE] >> ROOM WRITE FAILED!\n", getpid());
+            
+            // Cleanup room
+
             free_user(&user);
             free_room(&room);
             return -1;

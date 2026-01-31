@@ -100,6 +100,18 @@ int recognize_packet(char* msg){
         case MSG_LOGI:
             if(msg_len < 21){
                 // session_key extraction fail
+                // if(check_reply_state(msg) == -1){
+                //     printf("(%d)packet2: %s\n", msg_len, msg);
+                //     char fail[4] = {msg[msg_len - 4], msg[msg_len - 3], msg[msg_len - 2], msg[msg_len - 1]};
+                //     if(!strcmp(fail, "fail")){
+                //         printf("Invalid password or username!\n");
+                //         free_user_data();
+                //         signal_response(RESPONSE_LOGIN, FALSE);
+                //         return -1;
+                //     }
+                // }
+                signal_response(RESPONSE_LOGIN, FALSE);
+                free_user_data();
                 return -1;
             }
 
@@ -133,7 +145,7 @@ int recognize_packet(char* msg){
             }
                 
             free(data_request);
-            disconnect_any_server();
+            //disconnect_any_server();
             break;
         case MSG_DATA:
             //data;ok
@@ -159,7 +171,7 @@ int recognize_packet(char* msg){
             }
 
             free(data_response);
-            disconnect_any_server();
+            //disconnect_any_server();
             break;
         case MSG_LOGO:
             if(!check_reply_state(msg)){
@@ -209,11 +221,15 @@ int recognize_packet(char* msg){
             char* frnd_reply;
             if(extract_frnd(msg) == -1){
                 printf("frnd fail!\n");
-                frnd_reply = get_firend_reply_packet(user_data.session_key, "fail");
+                frnd_reply = get_friend_reply_packet(user_data.session_key, "fail");
             }
             else{
                 printf("frnd success!\n");
-                frnd_reply = get_firend_reply_packet(user_data.session_key, "ok");
+                frnd_reply = get_friend_reply_packet(user_data.session_key, "ok");
+                if(user_data.friend_amount == 0){
+                    signal_response(RESPONSE_LOGIN, TRUE);
+                    switch_to_chat_window();
+                }
             }
 
             send_to_server(frnd_reply);

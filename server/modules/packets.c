@@ -136,6 +136,15 @@ char* get_friends_packet(char* session_key){
     return packet;
 }
 
+char* get_friend_packet(const char* name){
+    //frnd;1;<name>
+    size_t packet_size = strlen(name) + 8;
+    char* packet = malloc(packet_size);
+    snprintf(packet, packet_size, "frnd;1;%s", name);
+
+    return packet;
+}
+
 char* get_state_packet(char* packet_id, char* state){
     size_t packet_size;
     char* packet;

@@ -166,6 +166,7 @@ int mongodb_user_read(char *name, user_t *user){
         return -1;
     }
 
+    user->friends = NULL;
     user->friends = malloc(user->friends_num * sizeof(int));
     if(bson_iter_init_find(&iter, doc, "friends") && BSON_ITER_HOLDS_ARRAY(&iter)) {
 
@@ -199,6 +200,7 @@ int mongodb_user_read(char *name, user_t *user){
         fprintf(stderr, "[%d][DB] >> %s's USER CHATS NUMBER FIND FAILED!\n", getpid(), name); 
     }
 
+    user->chats = NULL;
     user->chats = malloc(user->chats_num * sizeof(int));
     if (bson_iter_init_find(&iter, doc, "chats") && BSON_ITER_HOLDS_ARRAY(&iter)) {
 

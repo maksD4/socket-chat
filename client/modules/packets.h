@@ -13,7 +13,7 @@ char* get_friend_removal_packet(char* session_key, char* friend);
 
 // Replies
 char* get_data_request_packet(char* session);
-char* get_firend_reply_packet(char* session_key, char* state);
+char* get_friend_reply_packet(char* session_key, char* state);
 char* get_room_reply_packet(char* session_key, int id, char* state);
 
 #endif

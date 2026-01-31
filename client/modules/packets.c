@@ -160,7 +160,7 @@ char* get_data_request_packet(char* session){
 
 // Friend data load reply
 // frnd;<session>;<state>
-char* get_firend_reply_packet(char* session_key, char* state){ // state = {ok, fail}
+char* get_friend_reply_packet(char* session_key, char* state){ // state = {ok, fail}
     size_t packet_size = strlen(session_key) + strlen(state) + 7;
     char* packet = malloc(packet_size);
 

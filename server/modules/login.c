@@ -35,7 +35,7 @@ void * login_thread(void *arg){
     ssize_t n;
     
     n=recv(newSocket, packet_buffer, PACKET_MAX_SIZE, 0);
-    printf("Login packet received!\n");
+    printf("Login server received packet!\n");
 
     // packet_id (4 chars)
     if(n <= 4 || n > PACKET_MAX_SIZE){

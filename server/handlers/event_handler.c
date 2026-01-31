@@ -17,10 +17,34 @@
 #include "server/handlers/packet_handler.h"
 #include "server/modules/packets.h"
 #include "server/modules/user_service.h"
+#include "server/utils/models/models_print.h"
 #include "server/utils/models/user.h"
 #include "server/utils/models/room.h"
 #include "server/utils/models/message.h"
 #include "lib/constants.h"
+
+int extract_friend_name(const char* packet, char* name){
+    const char* first = strchr(packet, ';');
+    if(!first){
+        return -1;
+    }
+
+    const char* second = strchr(first + 1, ';');
+    if(!second){
+        return -1;
+    }
+
+    size_t name_len = strlen(second + 1);
+    if(name_len > NAME_MAX_SIZE){
+        printf("Name is too big while extracting friends name from packet!\n");
+        return -1;
+    }
+
+    memcpy(name, second + 1, name_len);
+    name[name_len] = '\0';
+
+    return 0;
+}
 
 int extract_credentials(const char* packet, char* name, char* password){
     const char* first = strchr(packet, ';');
@@ -175,6 +199,13 @@ void on_log_in(int reply_socket, char* packet, size_t packet_size){
     char* session_key;
     if(redis_session_write(&session_key, id) == -1){
         printf("[%d][AUTH] >> SESSION WRITE FAILED!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        free(session_key);
+        return;
+    }
+
+    if(redis_user_socket_write(id, reply_socket) == -1){
+        printf("[%d][AUTH] >> REDIS USER SOCKET WRITE FAILED!'n", getpid());
         send_state_packet(reply_socket, packet, "fail");
         free(session_key);
         return;
@@ -465,7 +496,124 @@ void on_message_request(int reply_socket, char* packet, size_t packet_size){
 }
 
 void on_friend_add_request(int reply_socket, char* packet, size_t packet_size){
+    char session_key[SESSION_KEY_SIZE + 1];
+    if(extract_session(packet, session_key) == -1){
+        printf("[%d][FADD] >> SESSION EXTRACTION FAILED!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }
 
+    char friend_name[NAME_MAX_SIZE + 1];
+    if(extract_friend_name(packet, friend_name) == -1){
+        printf("[%d][FADD] >> FRIEND'S NAME EXTRACTION FAILED!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }
+
+    int friend_id = mongodb_user_get_id(friend_name);
+    if(friend_id == -1){
+        printf("[%d][FADD] >> CANNOT FIND FRIEND'S ID IN MONGODB!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }
+
+    user_t user;
+    if(redis_user_read(session_key, &user) == -1){
+        printf("[%d][FADD] >> CANNOT READ USER FROM REDIS!\n", getpid());
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }
+ 
+    if(user.id == friend_id){
+        send_state_packet(reply_socket, packet, "fail");
+        return;
+    }
+
+    // Repeated invite
+    if(!redis_check_friend_invite(user.id, friend_id)){
+        send_state_packet(reply_socket, packet, "ok");
+        return;
+    }
+    
+
+    // Invited user already invited sender
+    if(!redis_check_friend_invite(friend_id, user.id)){
+        // Make them friends
+        if(redis_remove_friend_invite(friend_id, user.id) == -1){
+            printf("[%d][FADD] >> COULDN'T REMOVE FRIEND INVITE!\n", getpid());
+        }
+
+        // Add them at redis level
+        if(redis_add_friend(user.id, friend_id) == -1){
+            printf("[%d][FADD] >> COULDN'T ADD FRIEND\n", getpid());
+        }
+
+        // Send friend add packet to sender
+        int user_socket = redis_user_socket_read(user.id);
+        if(user_socket == -1){
+            printf("[%d][FADD] >> COULDN'T READ SENDER SOCKET!\n", getpid());
+        }
+        else{
+            char* sender_packet = get_friend_packet(friend_name);
+            send(user_socket, sender_packet, strlen(sender_packet), 0);
+            free(sender_packet);
+        }
+
+        // Create room
+
+        // Check if receiver is online
+        if(!redis_user_exist(friend_id)){
+            if(redis_add_friend(friend_id, user.id) == -1){
+                printf("[%d][FADD] >> COULDN'T ADD FRIEND\n", getpid());
+            }
+
+            // Send friend and room packet to receiver
+            int friend_socket = redis_user_socket_read(friend_id);
+            if(friend_socket == -1){
+                printf("[%d][FADD] >> COULDN'T READ FRIEND SOCKET!\n", getpid());
+            }
+            else{
+                char* frnd_packet = get_friend_packet(user.name);
+
+                send(friend_socket, frnd_packet, strlen(frnd_packet), 0);
+                free(frnd_packet);
+            }
+
+        }
+        else{
+            user_t friend;
+            if(mongodb_user_read(friend_name, &friend) == -1){
+                printf("[%d][FADD] >> MONGODB USER READ FAILED!\n", getpid());
+            }
+            
+            friend.friends_num += 1;
+            int* friends_new = realloc(friend.friends, friend.friends_num * sizeof(int));
+
+            if(friends_new == NULL){
+                printf("[%d][FADD] >> Memory reallocation failed!\n", getpid());
+                friend.friends_num -= 1;
+            }
+            else{
+                friend.friends = friends_new;
+                friend.friends[friend.friends_num - 1] = user.id;
+
+                if(mongodb_user_write(friend) == -1){
+                    printf("[%d][FADD] >> MONGODB USER WRITE FAILED!\n", getpid());
+                }   
+            }
+        }
+    }
+    else{
+        if(redis_add_friend_invite(user.id, friend_id) == -1){
+            printf("[%d][FADD] >> COULDN'T ADD FRIEND TO INVITE LIST!\n", getpid());
+            send_state_packet(reply_socket, packet, "fail");
+            free_user(&user);
+            return;
+        }
+    }
+
+    send_state_packet(reply_socket, packet, "ok");
+    free_user(&user);
 }
 
 void on_friend_removal_request(int reply_socket, char* packet, size_t packet_size){
