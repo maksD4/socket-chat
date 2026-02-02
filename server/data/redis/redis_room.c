@@ -53,55 +53,73 @@ int redis_room_message_write(int chat_id, message_t message){
     return 0;
 }
 
-int redis_room_message_next(int user_id, int chat_id, char* message, message_t *msg){
-    redisContext *c;
+int redis_room_message_next(int user_id, int chat_id, char* message, message_t *msg) {
+    redisContext *c = redis_get();
     redisReply *r;
-
     int message_id;
 
-    r = redisCommand(c, "MULTI");
-    if (r == NULL) {
-        fprintf(stderr, "MULTI failed: %s\n", c->errstr);
-        return -1;
-    }
-    freeReplyObject(r);
-
     r = redisCommand(c, "HINCRBY room:%d message_amount 1", chat_id);
-    if (r == NULL) {
-        freeReplyObject(redisCommand(c, "DISCARD"));  // Abort transaction
+    if (!r || r->type != REDIS_REPLY_INTEGER) {
+        if (r) freeReplyObject(r);
         return -1;
     }
+
+    message_id = (int) r->integer;
     freeReplyObject(r);
 
-    r = redisCommand(c, "HGET room:%d message_amount", chat_id);
-    if (r == NULL) {
-        freeReplyObject(redisCommand(c, "DISCARD"));  // Abort transaction
-        return -1;
-    }
-    freeReplyObject(r);
-
-    r = redisCommand(c, "EXEC");
-    if (r == NULL) {
-        fprintf(stderr, "EXEC failed: %s\n", c->errstr);
-        return -1;
-    }
-
-    if (r->type == REDIS_REPLY_NIL) {
-        fprintf(stderr, "Transaction aborted (WATCH triggered)\n");
-        freeReplyObject(r);
-        return -1;
-    }
-    
-    if(r->type == REDIS_REPLY_ARRAY){
-        message_id = atoi(r->element[1]->str);
-    }
-    
-    if(message_id > 0){
-        *msg = create_message(message_id, user_id, message);
-    }
-    
+    *msg = create_message(message_id, user_id, message);
     return 0;
 }
+
+// int redis_room_message_next(int user_id, int chat_id, char* message, message_t *msg){
+//     redisContext *c = redis_get();
+//     redisReply *r;
+
+//     int message_id;
+
+//     r = redisCommand(c, "MULTI");
+//     if (r == NULL) {
+//         fprintf(stderr, "MULTI failed: %s\n", c->errstr);
+//         return -1;
+//     }
+//     freeReplyObject(r);
+
+//     r = redisCommand(c, "HINCRBY room:%d message_amount 1", chat_id);
+//     if (r == NULL) {
+//         freeReplyObject(redisCommand(c, "DISCARD"));  // Abort transaction
+//         return -1;
+//     }
+//     freeReplyObject(r);
+
+//     r = redisCommand(c, "HGET room:%d message_amount", chat_id);
+//     if (r == NULL) {
+//         freeReplyObject(redisCommand(c, "DISCARD"));  // Abort transaction
+//         return -1;
+//     }
+//     freeReplyObject(r);
+
+//     r = redisCommand(c, "EXEC");
+//     if (r == NULL) {
+//         fprintf(stderr, "EXEC failed: %s\n", c->errstr);
+//         return -1;
+//     }
+
+//     if (r->type == REDIS_REPLY_NIL) {
+//         fprintf(stderr, "Transaction aborted (WATCH triggered)\n");
+//         freeReplyObject(r);
+//         return -1;
+//     }
+    
+//     if(r->type == REDIS_REPLY_ARRAY){
+//         message_id = atoi(r->element[1]->str);
+//     }
+    
+//     if(message_id > 0){
+//         *msg = create_message(message_id, user_id, message);
+//     }
+    
+//     return 0;
+// }
 
 int redis_room_messages_write(int id, message_t *messages, int message_amount){
     redisContext *c = redis_get();
@@ -184,7 +202,7 @@ int redis_room_messages_read(int id, message_t **messages, int message_amount){
             m->date = 0;
         }
         
-        printf("[REDIS][%s] >> message: %s\ndate: %lld\n", mongodb_user_get_name(m->sent_by), m->message, m->date);
+        //printf("[REDIS][%s] >> message: %s\ndate: %lld\n", mongodb_user_get_name(m->sent_by), m->message, m->date);
         freeReplyObject(h);
     }
 
@@ -199,7 +217,7 @@ int redis_room_write(room_t room){
         return -1;
     }
 
-    if(room.users == NULL || room.messages == NULL){
+    if((room.users == NULL && room.user_amount != 0) || (room.messages == NULL && room.message_amount != 0)){
         printf("[%d][REDIS] >> ROOM IS NULL WHILE WRITING!\n", getpid());
         return -1;
     }

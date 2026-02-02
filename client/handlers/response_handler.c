@@ -3,6 +3,8 @@
 
 #include "client/handlers/response_handler.h"
 #include "lib/constants.h"
+#include "client/modules/client.h"
+#include "client/modules/app/user_app.h"
 
 static ResponseCallback response_callbacks[6] = {NULL};
 
@@ -255,38 +257,31 @@ void show_send_message_dialog(ResponseData *data){
 }
 
 void show_logout_dialog(ResponseData *data){
+    GtkWidget *dialog;
     if(data->timeout_occurred){
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,
                                                    "Server timeout!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     }
     else if(data->response_received && data->success){
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_INFO,
                                                    GTK_BUTTONS_OK,
                                                    "You've successfully logged in!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
-
-        g_print("Logged out successfully\n");
-
-        // [Switch windows]
     }
     else{
-        GtkWidget *dialog = gtk_message_dialog_new(NULL,
+        dialog = gtk_message_dialog_new(NULL,
                                                    GTK_DIALOG_MODAL,
                                                    GTK_MESSAGE_ERROR,
                                                    GTK_BUTTONS_OK,
                                                    "You failed to log in!");
-        gtk_window_present(GTK_WINDOW(dialog));
-        //g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     }
 
+    gtk_window_present(GTK_WINDOW(dialog));
+    g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_window_destroy), dialog);
     cleanup_response_data(data);
 }
 

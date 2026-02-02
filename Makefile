@@ -36,5 +36,7 @@ client/%.o: client/%.c
 all: $(SERVER_TARGET)
 server: $(SERVER_TARGET)
 client: $(CLIENT_TARGET)
+clean_client:
+	rm -f $(CLIENT_OBJ) $(CLIENT_TARGET)
 clean:
 	rm -f $(SERVER_OBJ) $(SERVER_TARGET) $(CLIENT_OBJ) $(CLIENT_TARGET)

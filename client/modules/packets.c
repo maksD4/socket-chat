@@ -58,17 +58,19 @@ char* get_logout_packet(char* session_key){
 }
 
 // Messaging packet
-// smsg;<session>;<chat_id>;<message>
+// smsg;<session>;<chat_id>;<msg_size>;<message>
 char* get_message_packet(char* session_key, int chat_id, char* message){
-    size_t chat_id_size = snprintf(NULL, 0, "%d", chat_id);
-    size_t packet_size = strlen(session_key) + chat_id_size + strlen(message) + 8;
+    int msg_len = (int)strlen(message);
+    size_t chat_id_size = snprintf(NULL, 0, "%d;%d", chat_id, msg_len);
+    size_t packet_size = strlen(session_key) + chat_id_size + msg_len + 8;
 
     char* packet = malloc(packet_size);
     if(!packet){
         return NULL;
     }
 
-    snprintf(packet, packet_size, "smsg;%s;%d;%s", session_key, chat_id, message);
+    // No need for message size, because user send only one message
+    snprintf(packet, packet_size, "smsg;%s;%d;%d;%s", session_key, chat_id, msg_len, message);
     packet[packet_size - 1] = '\0';
     printf("packet: %s\npacket_size: %d\n", packet, packet_size);
     return packet;

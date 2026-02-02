@@ -83,26 +83,25 @@ void switch_to_chat_window(){
     }
 }
 
+void switch_to_login_window(){
+    if(global_app && global_window){
+        show_login_window(global_app, global_window);
+    }
+}
+
 int main(int argc, char **argv){
     init_response_handlers();
-    
-    /*
-    init_sample_data();
-    printf("freeing\n");
-    free_user_data();
-    print_user_data();
-    */
 
     int status;
     
     //init_sample_data();
-    
-    global_app = gtk_application_new("com.example.chatapp", G_APPLICATION_DEFAULT_FLAGS);
+    char app_id[64];
+    snprintf(app_id, sizeof(app_id), "com.r2up3l.socket-chat.%d", getpid());
+
+    global_app = gtk_application_new("com.r2up3l.socket_chat", G_APPLICATION_NON_UNIQUE);
     g_signal_connect(global_app, "activate", G_CALLBACK(activate), NULL);
     status = g_application_run(G_APPLICATION(global_app), argc, argv);
     g_object_unref(global_app);
     
     return status;
-    //run_app(argc, argv);
-    //return 0;
 }

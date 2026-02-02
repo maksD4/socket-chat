@@ -36,7 +36,7 @@ int mongodb_to_redis(char* name){
             free_room(&chat);
             return -1;
         }
-        print_room(chat);
+        //print_room(chat);
         redis_room_write(chat);
         free_room(&chat);
     }
@@ -47,14 +47,14 @@ int mongodb_to_redis(char* name){
         return -1;
     }
 
-    print_user(user);
+    //print_user(user);
     redis_user_write(user);
     
     for(int i = 0; i < user.chats_num; i++){
         if(!redis_room_exist(user.chats[i])){
             room_t test_room;
             redis_room_read(user.chats[i], &test_room);
-            print_room(test_room);
+            //print_room(test_room);
             free_room(&test_room);
         }
     }

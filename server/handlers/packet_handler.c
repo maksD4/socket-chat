@@ -44,6 +44,7 @@ int recognize_packet(int reply_socket, char* packet, size_t packet_size){
         return -1;
     }
     uint32_t id = ID4(packet[0], packet[1], packet[2], packet[3]);
+    //printf("[SERVER] >> Received packet: %s\n", packet);
 
     switch(id){
         case MSG_SMSG:

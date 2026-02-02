@@ -42,8 +42,9 @@ int redis_counter_get(char* packet_id, char* session){
         return -1;
     }
 
+    int counter = atoi(r->str);
     freeReplyObject(r);
-    return atoi(r->str);
+    return counter;
 }
 
 int redis_counters_del(char* packet_id, char* session){

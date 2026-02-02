@@ -5,6 +5,7 @@
 #include <lib/hiredis/hiredis.h>
 #include <pthread.h>
 
+#include "lib/constants.h"
 #include "server/data/redis/redis_user.h"
 #include "server/data/redis/redis_session.h"
 #include "server/data/redis/redis_client.h"
@@ -203,7 +204,7 @@ int redis_user_get_name(int id, char **name){
     redisReply *r = redisCommand(c, "HGET user:%d name", id);
 
     if(r == NULL || r->elements < 1){
-        printf("[%d][REDIS] >> USERNAME READ FAILED!\n", getpid());
+        printf("[%d][REDIS] >> USER GET NAME ID: %d!\n", getpid(), id);
         return -1;
     }
 
@@ -231,16 +232,31 @@ int redis_add_friend(int id1, int id2){
     return 0;
 }
 
-int redis_user_socket_write(int id, int socket){
+int redis_user_socket_write(int id, char* session_key, int socket){
     redisContext *c = redis_get();
     redisReply *r = redisCommand(c, "HSET user:%d socket %d", id, socket);
 
     if(r == NULL){
-        printf("[%d][REDIS] >> USER SOCKET WRITE FAILED!\n", getpid());
+        printf("[%d][REDIS] >> ID:SOCKET WRITE FAILED!\n", getpid());
         return -1;
     }
-
     freeReplyObject(r);
+
+    // is user:<session> socket necessary?
+    // r = redisCommand(c, "SET user:%s %d", session_key, socket);
+    // if(r == NULL){
+    //     printf("[%d][REDIS] >> KEY:SOCKET WRITE FAILED!\n", getpid());
+    //     return -1;
+    // }
+    // freeReplyObject(r);
+
+    r = redisCommand(c, "HSET socket:%d id %d session_key %s", socket, id, session_key);
+    if(r == NULL){
+        printf("[%d][REDIS] >> SOCKET:ID:KEY WRITE FAILED!\n", getpid());
+        return -1;
+    }
+    freeReplyObject(r);
+
     return 0;
 }
 
@@ -264,6 +280,50 @@ int redis_user_socket_read(int id){
     return socket;
 }
 
+int redis_user_socket_get_id(int socket){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "HGET socket:%d id", socket);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> COULDN'T READ ID BY SOCKET!\n", getpid());
+        return -1;
+    }
+
+    int id = atoi(r->str);
+    freeReplyObject(r);
+    return id;
+}
+
+char* redis_user_socket_get_session(int socket){
+    redisContext *c = redis_get();
+    redisReply *r = redisCommand(c, "HGET socket:%d session_key", socket);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> COULDN'T READ ID BY SOCKET!\n", getpid());
+        return NULL;
+    }
+
+    if (r->type != REDIS_REPLY_STRING) {
+        printf("[%d][REDIS] >> Unexpected reply type: %d\n", getpid(), r->type);
+        freeReplyObject(r);
+        return NULL;
+    }
+
+    // Validate length before copying
+    if (r->len != SESSION_KEY_SIZE) {
+        printf("[%d][REDIS] >> Invalid session length: %lld\n", getpid(), r->len);
+        freeReplyObject(r);
+        return NULL;
+    }
+
+    char* session_key = malloc(SESSION_KEY_SIZE + 1);
+    memcpy(session_key, r->str, SESSION_KEY_SIZE);
+    session_key[SESSION_KEY_SIZE] = '\0';
+
+    freeReplyObject(r);
+    return session_key;
+}
+
 int redis_user_cleanup(int id){
     redisContext *c = redis_get();
 
@@ -274,6 +334,19 @@ int redis_user_cleanup(int id){
 
     redisReply *r = NULL;
     int errors = 0;
+
+    // Delete socket from redis
+    int socket = redis_user_socket_read(id);
+    if(socket != -1){
+        r = redisCommand(c, "DEL socket:%d", socket);
+        if(r != NULL){
+            freeReplyObject(r);
+        }
+    }
+    else{
+        printf("[%d][REDIS] >> Failed to read socket while cleaning up!\n", getpid());
+        errors++;
+    }
 
     // Delete user main hash (name, password, friends_num, chats_num, socket)
     r = redisCommand(c, "DEL user:%d", id);
@@ -360,3 +433,30 @@ int redis_is_user_online(int id){
     return exist == -1 ? -1 : exist - 1;
 }
 
+// Redis: adds chat_id to user's chats list
+int redis_add_chat_to_user(int user_id, int chat_id){
+    redisContext *c = redis_get();
+
+    if(c == NULL || c->err){
+        return -1;
+    }
+
+    redisReply *r = redisCommand(c, "RPUSH user:%d:chats %d", user_id, chat_id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Failed to add chat %d to user %d\n", getpid(), chat_id, user_id);
+        return -1;
+    }
+
+    freeReplyObject(r);
+
+    r = redisCommand(c, "HINCRBY user:%d chats_num 1", user_id);
+
+    if(r == NULL){
+        printf("[%d][REDIS] >> Failed to increment chats_num for user %d\n", getpid(), user_id);
+        return -1;
+    }
+
+    freeReplyObject(r);
+    return 0;
+}

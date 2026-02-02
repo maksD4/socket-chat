@@ -107,6 +107,7 @@ char* mongodb_user_get_name(int id){
 
     //printf("get_name(%d): %s\n", id, name);
 
+    bson_destroy((bson_t*)doc);
     bson_destroy(filter);
     bson_destroy(opts);
     return result;
@@ -242,5 +243,29 @@ int mongodb_user_write(user_t user){
     mongodb_print_collection("USER");
 
     bson_destroy(&bson);
+    return 0;
+}
+
+// MongoDB: adds chat_id to user's chats array and increments chats_num
+int mongodb_add_chat_to_user(int user_id, int chat_id){
+    bson_t *filter = BCON_NEW("id", BCON_INT32(user_id));
+    bson_t *update = BCON_NEW(
+        "$push", "{",
+            "chats", BCON_INT32(chat_id),
+        "}",
+        "$inc", "{",
+            "chats_num", BCON_INT32(1),
+        "}"
+    );
+
+    if(mongodb_update("USER", filter, update) == -1){
+        printf("[%d][MONGO] >> Failed to add chat %d to user %d\n", getpid(), chat_id, user_id);
+        bson_destroy(filter);
+        bson_destroy(update);
+        return -1;
+    }
+
+    bson_destroy(filter);
+    bson_destroy(update);
     return 0;
 }

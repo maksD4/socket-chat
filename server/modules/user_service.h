@@ -2,6 +2,7 @@
 #define USER_SERVICE_H
 
 int account_creation(char* name, char* password);
+int room_creation(int usr_amount, int* users);
 int account_deletion(char* session_key);
 int auth(char* name, char* password, int* user_id);
 int friend_add(char* session_key, char* name);

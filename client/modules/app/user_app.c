@@ -60,13 +60,28 @@ void add_messages_data(int id, int msg_amount, msg_data_t* messages){
     }
 
     if(room == NULL){
+        printf("room is null\n");
         return;
     }
-    for(int i = 0; i < msg_amount && room->msg_iter < room->msg_amount; i++){
+
+    for(int i = 0; i < msg_amount; i++){
+        printf("[%d] %s (len: %d) >> %s(len: %d)\n", messages[i].id, messages[i].sent_by, strlen(messages[i].sent_by), messages[i].message, strlen(messages[i].message));
+    }   
+
+    printf("iter: %d\n", room->msg_iter);
+    printf("msg_amount: %d\n", room->msg_amount);
+    if(msg_amount > room->msg_amount - room->msg_iter){
+        msg_amount = room->msg_amount - room->msg_iter;
+    }
+    printf("msg_amount2: %d\n", msg_amount);
+
+    for(int i = 0; i < msg_amount; i++){
+        printf("a\n");
         room->messages[room->msg_iter].id = messages[i].id;
         strcpy(room->messages[room->msg_iter].sent_by, messages[i].sent_by);
         strcpy(room->messages[room->msg_iter].message, messages[i].message);
         room->messages[room->msg_iter].date = messages[i].date;
+        printf("[%d] %s >> %s\n", room->messages[room->msg_iter].id, room->messages[room->msg_iter].sent_by, room->messages[room->msg_iter].message);
         room->msg_iter += 1;
     }
 }

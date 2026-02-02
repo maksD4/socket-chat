@@ -199,6 +199,25 @@ int mongodb_insert(const char *collection_name, bson_t document){
     return 0;
 }
 
+int mongodb_update(const char* collection_name, bson_t* filter, bson_t* update){
+    bson_error_t error;
+    mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
+
+    if (!collection) {
+        printf("[%d][MONGO] >> Failed to get collection %s\n", getpid(), collection_name);
+        return -1;
+    }
+
+    if (!mongoc_collection_update_one(collection, filter, update, NULL, NULL, &error)) {
+        fprintf(stderr, "[%d][DB] >> OPERATION UPDATE FAILED: %s\n", getpid(), error.message);
+        mongoc_collection_destroy(collection);
+        return -1;
+    }
+
+    mongoc_collection_destroy(collection);
+    return 0;
+}
+
 int mongodb_get_doc(const char *collection_name, bson_t *filter, bson_t *opts, const bson_t **doc){
     mongoc_collection_t *collection = mongoc_client_get_collection(client, DB_NAME, collection_name);
 

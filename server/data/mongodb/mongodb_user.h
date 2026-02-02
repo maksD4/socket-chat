@@ -10,5 +10,6 @@ int mongodb_user_get_id(const char* name);
 
 int mongodb_user_read(char *name, user_t *user);
 int mongodb_user_write(user_t user);
+int mongodb_add_chat_to_user(int user_id, int chat_id);
 
 #endif

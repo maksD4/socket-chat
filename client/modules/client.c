@@ -73,6 +73,7 @@ int send_to_server(char *message){
         return -1;
     }
 
+    printf("(%d)Sent packet: %s\n", user_data.conn.clientSocket, message);
     return 0;
 }
 

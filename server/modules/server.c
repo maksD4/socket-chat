@@ -102,39 +102,72 @@ pid_t create_server_process(){
 static uint8_t server_packet_buffer[PACKET_MAX_SIZE + 1];
 
 void * server_thread(void *arg){
-    printf("New user connected to main server!\n");
+    printf("[Thread] >> New user connected to main server!\n");
     int newSocket = *((int *)arg);
     ssize_t n;
-    
-    n=recv(newSocket, server_packet_buffer, PACKET_MAX_SIZE, 0);
-    printf("Packet received!\n");
+    while(1){
+        n=recv(newSocket, server_packet_buffer, PACKET_MAX_SIZE, 0);
 
-    // packet_id (4 chars)
-    if(n <= 4 || n > PACKET_MAX_SIZE){
-        // send back reply
-        send(newSocket, "fail", 4, 0);
-        pthread_exit(NULL);
+        if(n == 0){
+            printf("asd1\n");
+            int user_id = redis_user_socket_get_id(newSocket);
+            printf("asd2\n");
+            char* session_key = redis_user_socket_get_session(newSocket);
+            printf("asd3\n");
+            if(session_key == NULL){
+                printf("Failed to save up user(%d) data!\n", user_id);
+            }
+            else{
+                if(redis_to_mongodb(session_key) == -1){
+                    printf("[Thread] >> (%d)Moving data from redis to mongodb failed!\n", user_id);
+                }
+                else{
+                    printf("[Thread] >> (%d)Redis data was successfully moved to mongodb!\n", user_id);
+                }
+                free(session_key);
+            }
+
+            printf("[Thread][%lu] >> Client disconnected\n", pthread_self());
+            break;
+        }
+
+        if(n < 0) {
+            perror("[Thread] >> recv error");
+            break;
+        }
+
+        // packet_id (4 chars)
+        if(n <= 4 || n > PACKET_MAX_SIZE){
+            // send back reply
+            send(newSocket, "fail", 4, 0);
+            continue;
+        }
+
+        char* packet = malloc((size_t)n + 1);
+        if(!packet){
+            // send back reply
+            printf("[Thread] >> Memory allocation failed\n");
+            send(newSocket, "fail", 4, 0);
+            continue; 
+        }
+
+        memcpy(packet, server_packet_buffer, (size_t) n);
+        packet[n] = '\0';
+
+        printf("[Thread] >> Received packet: %s (len: %zd)\n", server_packet_buffer, n);
+
+        if(recognize_packet(newSocket, packet, (size_t)n) == -1){
+            printf("[Thread] >> Didn't recognize packet!\n");
+            send_state_packet(newSocket, packet, "fail");
+        }
+        
+        memset(&server_packet_buffer, 0, sizeof (server_packet_buffer));
+        free(packet);
+
     }
 
-    char* packet = malloc((size_t)n + 1);
-    if(!packet){
-        // send back reply
-        pthread_exit(NULL);
-    }
-
-    memcpy(packet, server_packet_buffer, (size_t) n);
-    packet[n] = '\0';
-
-    printf("[Main server thread] Received packet: %s (len: %d, sizeof: %d)\n", server_packet_buffer, (int)strlen(packet), (int)sizeof(packet));
-
-    if(recognize_packet(newSocket, packet, (size_t)n) == -1){
-        printf("Didnt recognize packet!\n");
-       send_state_packet(newSocket, packet, "fail");
-    }
-    
-    memset(&server_packet_buffer, 0, sizeof (server_packet_buffer));
-    free(packet);
-
+    close(newSocket);
+    printf("[Thread][%lu] >> Connection closed, thread exiting...\n", pthread_self());
     pthread_exit(NULL);
 }
 
@@ -145,84 +178,86 @@ void server(){
         printf("Mongodb has successfully set up!\n");
     }
     
-    /*
-    int friends[2] = {2, 3};
-    int chats[1] = {1};
-    user_t bob = create_user(1, "Bob", "password", friends, 2, chats, 1);
-
-    if(mongodb_user_write(bob)){
-        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
-    }
-    printf("\n");
-
-    int friends2[1] = {1};
-    user_t alice = create_user(2, "Alice", "secret", friends2, 1, chats, 1);
-    if(mongodb_user_write(alice)){
-        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
-    }
-
-    bob.name = "Robert";
-    if(mongodb_user_write(bob)){
-        printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
-    }
-
-    // Room test
-    message_t *msgs = malloc(2 * sizeof(message_t));
-    msgs[0] = create_message(1, 1, "Hello Alice!");
-    msgs[1] = create_message(2, 2, "Hello Bob!");
-    int *usrs = malloc(2 * sizeof(int));
-    usrs[0] = 1;
-    usrs[1] = 2;
-
-    printf("asd0.5\n");
-    room_t chat = create_room(1, usrs, 2, msgs, 2);
-    print_room(chat);
-    if(mongodb_room_write(chat)){
-        printf("[%d][DB] >> DB ROOM INSERT FAILED!\n", getpid());
-    }
-    printf("asd0.6\n");
-    if(!mongodb_to_redis("Bob")){
-        printf("Bob was successfully transferred from db to redis!\n");
-    }
-    else{
-        printf("Bob's transfer from db to redis has failed!\n");
-    }
-    printf("asd0.7\n");
-    if(!mongodb_to_redis("Alice")){
-        printf("Alice was successfully transferred from db to redis!\n");
-    }
-    else{
-        printf("Alice's transfer from db to redis has failed!\n");
-    }
-
-    printf("asd1\n");    
-
-    // Redis session test
-    char *test_session;
-    if(redis_session_write(&test_session, 3)){
-        printf("redis_write fail\n");
-    }
-    else{
-        printf("session:%s userid:%d\n", test_session, redis_session_read(test_session));
-
-        redis_session_delete(test_session);
-
-        printf("session_exist: %d\n", redis_session_exist(test_session));
-    }
-
-    printf("Bob's id: %d\n", mongodb_user_get_id("Bob"));
-    printf("Alice's id: %d\n", mongodb_user_get_id("Alice"));
-    int id_one, id_two;
-    printf("auth: %d", auth("Robert", "wrong_password", &id_one));
-    printf(", id: %d\n", id_one);
-    printf("auth2: %d", auth("Robert", "password", &id_two));
-    printf(", id: %d\n", id_two);
     
-    for(;;){
-        printf("echo!\n");
-        sleep(3);
-    }
-    */
+    // int friends[2] = {2, 3};
+    // int chats[1] = {1};
+    // user_t bob = create_user(1, "Bob", "123", friends, 2, chats, 1);
+    // //user_t bob = create_user(1, "Bob", "123", friends, 2, NULL, 0);
+
+    // if(mongodb_user_write(bob)){
+    //     printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
+    // }
+    // printf("\n");
+
+    // int friends2[1] = {1};
+    // user_t alice = create_user(2, "Alice", "123", friends2, 1, chats, 1);
+    // //user_t alice = create_user(2, "Alice", "123", friends2, 1, NULL, 0);
+    // if(mongodb_user_write(alice)){
+    //     printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
+    // }
+
+    // // bob.name = "Robert";
+    // // if(mongodb_user_write(bob)){
+    // //     printf("[%d][DB] >> DB USER INSERT FAILED!\n", getpid());
+    // // }
+
+    // // Room test
+    // message_t *msgs = malloc(2 * sizeof(message_t));
+    // msgs[0] = create_message(1, 1, "Hello Alice!");
+    // msgs[1] = create_message(2, 2, "Hello Bob!");
+    // int *usrs = malloc(2 * sizeof(int));
+    // usrs[0] = 1;
+    // usrs[1] = 2;
+
+    // // printf("asd0.5\n");
+    // room_t chat = create_room(1, usrs, 2, msgs, 2);
+    // // print_room(chat);
+    // if(mongodb_room_write(chat)){
+    //     printf("[%d][DB] >> DB ROOM INSERT FAILED!\n", getpid());
+    // }
+    // printf("asd0.6\n");
+    // if(!mongodb_to_redis("Bob")){
+    //     printf("Bob was successfully transferred from db to redis!\n");
+    // }
+    // else{
+    //     printf("Bob's transfer from db to redis has failed!\n");
+    // }
+    // printf("asd0.7\n");
+    // if(!mongodb_to_redis("Alice")){
+    //     printf("Alice was successfully transferred from db to redis!\n");
+    // }
+    // else{
+    //     printf("Alice's transfer from db to redis has failed!\n");
+    // }
+
+    // printf("asd1\n");    
+
+    // // Redis session test
+    // char *test_session;
+    // if(redis_session_write(&test_session, 3)){
+    //     printf("redis_write fail\n");
+    // }
+    // else{
+    //     printf("session:%s userid:%d\n", test_session, redis_session_read(test_session));
+
+    //     redis_session_delete(test_session);
+
+    //     printf("session_exist: %d\n", redis_session_exist(test_session));
+    // }
+
+    // printf("Bob's id: %d\n", mongodb_user_get_id("Bob"));
+    // printf("Alice's id: %d\n", mongodb_user_get_id("Alice"));
+    // int id_one, id_two;
+    // printf("auth: %d", auth("Robert", "wrong_password", &id_one));
+    // printf(", id: %d\n", id_one);
+    // printf("auth2: %d", auth("Robert", "password", &id_two));
+    // printf(", id: %d\n", id_two);
+    
+    // for(;;){
+    //     printf("echo!\n");
+    //     sleep(3);
+    // }
+    
 
     // login thread
     int serverSocket, newSocket;

@@ -8,6 +8,7 @@ void send_room_packet_fail(int* client_socket, int* chat_id);
 void send_room_packet(int client_socket, char* session_key, int chat_id);
 void send_state_packet(int client_socket, char* packet, const char* state);
 void send_numbered_state_packet(int client_socket, char* packet, int* number, const char* state);
+int get_next_room(char* session_key, int chat_id);
 
 char* get_session_packet(char* session_key);
 char* get_friends_packet(char* session_key);

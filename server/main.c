@@ -14,6 +14,8 @@
 // sudo usermod -G docker -a $USER
 // sudo systemctl restart docker
 // sudo docker run --name mongodb -d mongo:latest
+// cp ./lib/*.pc /usr/lib/pkgconfig
+// export PKG_CONFIG_PATH=/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 
 
 int main(){
