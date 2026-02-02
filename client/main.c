@@ -89,7 +89,32 @@ void switch_to_login_window(){
     }
 }
 
+char* server_address;
+
+void set_address(char* addr){
+    int addr_len = (int)strlen(addr);
+    server_address = malloc(addr_len + 1);
+    memcpy(server_address, addr, addr_len);
+    server_address[addr_len] = '\0';
+}
+
 int main(int argc, char **argv){
+    if(argc == 1){
+        set_address("127.0.0.1");
+    }
+    if(argc == 2){
+        set_address(argv[1]);
+
+        if (argc > 1) {
+            for (int i = 1; i < argc - 1; i++) {
+                argv[i] = argv[i + 1];
+            }
+            argc--;
+            argv[argc] = NULL;
+        }
+    }
+    printf("serv addres: %s\n", server_address);
+
     init_response_handlers();
 
     int status;

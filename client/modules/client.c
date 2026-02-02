@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "client/main.h"
 #include "client.h"
 #include "packets.h"
 #include "client/modules/app/user_app.h"
@@ -83,7 +84,8 @@ int login_server_connect(int port){
     c->clientSocket = socket(PF_INET, SOCK_STREAM, 0);
     c->serverAddr.sin_family = AF_INET;
     c->serverAddr.sin_port = htons(port);
-    c->serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    c->serverAddr.sin_addr.s_addr = inet_addr(server_address);
+    //c->serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     memset(c->serverAddr.sin_zero, '\0', sizeof(c->serverAddr.sin_zero));
 
     c-> addr_size = sizeof(c->serverAddr);
@@ -109,7 +111,8 @@ int main_server_connect(char *name, char *session_key, int port){
 
     c->serverAddr.sin_family = AF_INET;
     c->serverAddr.sin_port = htons(port);
-    c->serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    //c->serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    c->serverAddr.sin_addr.s_addr = inet_addr(server_address);
     memset(c->serverAddr.sin_zero, '\0', sizeof(c->serverAddr.sin_zero));
 
     c->addr_size = sizeof(c->serverAddr);
