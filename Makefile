@@ -33,7 +33,7 @@ client/%.o: client/%.c
 	$(CC) $(CLIENT_CFLAGS) -c $< -o $@
 
 # Targets
-all: $(SERVER_TARGET)
+all: $(SERVER_TARGET) $(CLIENT_TARGET)
 server: $(SERVER_TARGET)
 client: $(CLIENT_TARGET)
 clean_client:
