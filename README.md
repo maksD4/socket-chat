@@ -1,5 +1,8 @@
 # socket-chat
 Instant messaging application that allows for client-to-client communication over sockets. Socket-chat is built in C with GTK4 desktop client and a server backed by MongoDB and Redis
+<p align="center"> 
+ <img src="https://github.com/maksD4/socket-chat/blob/master/socket-chat.gif" width=800>
+</p>
 
 ## Features
 - Account creation and password-based login
